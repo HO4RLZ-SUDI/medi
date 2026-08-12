@@ -1,281 +1,345 @@
-<!DOCTYPE html>
-<!-- ElderCare AI — caregiver dashboard (served by the arduino:web_ui brick at :7000).
-     Polls GET /api/state every second and renders it; buttons hit the
-     /api/ack | /api/dispense | /api/med_taken endpoints exposed in dashboard.py. -->
+<!doctype html>
 <html lang="th">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ElderCare AI — ระบบดูแลผู้สูงอายุ</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ตู้จ่ายยา — UNO Q</title>
 <style>
-  :root { --bg:#0f1217; --card:#1a1f29; --line:#2a3140; --txt:#e6eaf0;
-          --muted:#8a93a6; --green:#2ecc71; --yellow:#f1c40f; --red:#e74c3c;
-          --blue:#3aa0ff; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family:system-ui,"Noto Sans Thai",sans-serif;
-         background:var(--bg); color:var(--txt); }
-  header { padding:18px 22px; border-bottom:1px solid var(--line);
-           display:flex; align-items:center; gap:12px; }
-  header h1 { font-size:18px; margin:0; font-weight:600; }
-  header .who { color:var(--muted); font-size:14px; }
-  .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); }
-  .wrap { max-width:920px; margin:0 auto; padding:20px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
-  .card .label { color:var(--muted); font-size:13px; margin-bottom:6px; }
-  .card .value { font-size:26px; font-weight:700; }
-  .card .unit { font-size:14px; color:var(--muted); font-weight:500; }
-  .banner { display:none; margin:0 0 16px; padding:16px 18px; border-radius:14px;
-            background:rgba(231,76,60,.15); border:1px solid var(--red);
-            color:#ff9c8f; font-weight:700; font-size:18px; }
-  .banner.on { display:block; animation:pulse 1s infinite; }
-  @keyframes pulse { 50% { opacity:.55; } }
-  .risk-bar { height:10px; border-radius:6px; background:#222a36; overflow:hidden; margin-top:10px; }
-  .risk-fill { height:100%; width:0; transition:width .4s; background:var(--green); }
-  .reasons { color:var(--muted); font-size:13px; margin-top:8px; min-height:18px; }
-  .actions { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0; }
-  button { flex:1; min-width:150px; padding:14px; border:none; border-radius:12px;
-           font-size:15px; font-weight:600; cursor:pointer; color:#0b0e13; }
-  .b-ack { background:var(--green); } .b-pill { background:var(--blue); color:#fff; }
-  .b-med { background:var(--yellow); }
-  button:active { transform:translateY(1px); }
-  h2 { font-size:15px; color:var(--muted); margin:22px 0 10px; font-weight:600; }
-  .ev { display:flex; gap:10px; padding:10px 12px; border:1px solid var(--line);
-        border-radius:10px; margin-bottom:8px; background:#151a23; }
-  .ev .sev { width:6px; border-radius:4px; }
-  .ev .msg { flex:1; font-size:14px; }
-  .ev .ts { color:var(--muted); font-size:12px; white-space:nowrap; }
-  .sev-info{background:var(--blue);} .sev-warning{background:var(--yellow);} .sev-critical{background:var(--red);}
-  .foot { color:var(--muted); font-size:12px; text-align:center; margin-top:18px; }
-  .camera { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:16px; }
-  @media (min-width:680px){ .camera { grid-template-columns:2fr 1fr; } }
-  .cam-wrap { position:relative; background:#000; border:1px solid var(--line);
-              border-radius:14px; overflow:hidden; aspect-ratio:4/3; }
-  #cam { width:100%; height:100%; object-fit:contain; display:block; }
-  .id-badge { position:absolute; left:10px; bottom:10px; padding:6px 12px;
-              border-radius:20px; font-size:14px; font-weight:700;
-              background:rgba(0,0,0,.6); border:1px solid var(--line); }
-  .id-badge.known { background:rgba(46,204,113,.85); color:#06210f; border-color:transparent; }
-  .id-badge.unknown { background:rgba(241,196,15,.85); color:#3a2e00; border-color:transparent; }
-  .enroll { background:var(--card); border:1px solid var(--line); border-radius:14px;
-            padding:16px; display:flex; flex-direction:column; gap:10px; }
-  .enroll input { padding:11px; border-radius:10px; border:1px solid var(--line);
-                  background:#10141c; color:var(--txt); font-size:14px; }
-  .b-enroll { background:#6c5ce7; color:#fff; }
-  .b-sos { background:var(--red); color:#fff; }
-  .b-send { flex:0 0 auto; min-width:80px; background:#6c5ce7; color:#fff; }
-  .chat { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
-  .chatlog { display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; margin-bottom:10px; }
-  .msg-row { display:flex; }
-  .msg-row.user { justify-content:flex-end; }
-  .bubble { max-width:80%; padding:9px 13px; border-radius:14px; font-size:14px; line-height:1.4; white-space:pre-wrap; }
-  .msg-row.user .bubble { background:#3aa0ff; color:#04243f; border-bottom-right-radius:4px; }
-  .msg-row.bot .bubble { background:#222a36; color:var(--txt); border-bottom-left-radius:4px; }
-  .chatbar { display:flex; gap:8px; }
-  .chatbar input { flex:1; padding:11px; border-radius:10px; border:1px solid var(--line);
-                   background:#10141c; color:var(--txt); font-size:14px; }
+  :root {
+    --bg: #10161a; --panel: #18232a; --line: #2a3b45;
+    --fg: #e6edf1; --muted: #8ba3b0; --teal: #00979d; --teal-dim: #007e83;
+    --ok: #3ecf8e; --err: #ff6b6b; --warn: #f0b93b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 48px;
+    background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Noto Sans Thai", sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px; margin-bottom: 18px;
+  }
+  .panel h2 { font-size: 15px; margin: 0 0 14px; letter-spacing: .3px; }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tag { min-width: 92px; font-size: 13px; color: var(--muted); }
+  button {
+    background: var(--teal); color: #fff; border: 0; border-radius: 6px;
+    padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  button:hover { background: var(--teal-dim); }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--fg); }
+  button.big { padding: 12px 18px; font-size: 15px; width: 100%; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  input[type=range] { flex: 1; min-width: 150px; accent-color: var(--teal); }
+  input[type=number] {
+    width: 64px; background: #0d1418; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px;
+    font-family: inherit; font-size: 13px;
+  }
+  .angle { width: 46px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .log {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted);
+    border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; min-height: 18px;
+  }
+  .log.ok { color: var(--ok); } .log.err { color: var(--err); }
+  #view-wrap {
+    position: relative; width: 100%; max-width: 640px; aspect-ratio: 4/3;
+    border-radius: 8px; overflow: hidden; background: #06090b; border: 1px solid var(--line);
+  }
+  #view { width: 100%; height: 100%; border: 0; display: block; }
+  #view-placeholder {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 13px;
+  }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .card { background: #0d1418; border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+  .card .name { font-size: 15px; font-weight: 600; }
+  .card .win { font-size: 12px; color: var(--muted); margin: 2px 0 10px; }
+  .card .pills { font-size: 26px; font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+  .card .pills small { font-size: 12px; color: var(--muted); font-weight: normal; }
+  .card .pills.empty { color: var(--err); }
+  .refill { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .refill button { padding: 6px 10px; font-size: 12px; }
+  .cfg { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .cfg label { font-size: 12px; color: var(--muted); min-width: 74px; }
+  .cfg input[type=range] { flex: 1; min-width: 80px; }
+  .cfg .unit { font-size: 12px; color: var(--muted); min-width: 48px; text-align: right;
+               font-variant-numeric: tabular-nums; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .stat { background: #0d1418; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .stat .v { font-size: 20px; margin-top: 4px; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
-<header>
-  <span class="dot" id="live"></span>
-  <h1>🟦 ElderCare AI — ระบบดูแลผู้สูงอายุอัจฉริยะ</h1>
-  <span class="who" id="who"></span>
-</header>
-
 <div class="wrap">
-  <div class="banner" id="banner">🚨 มีเหตุฉุกเฉิน — กรุณาตรวจสอบทันที</div>
+  <h1>ตู้จ่ายยาอัตโนมัติ</h1>
+  <div class="sub">สั่งปัดยา • ทดสอบเซอร์โว • กล้อง USB webcam</div>
 
-  <div class="camera">
-    <div class="cam-wrap">
-      <img id="cam" alt="กล้องถ่ายทอดสด">
-      <div class="id-badge" id="idBadge">กำลังเชื่อมต่อกล้อง…</div>
-    </div>
-    <div class="enroll">
-      <div class="label">ลงทะเบียนใบหน้า (Face Enrollment)</div>
-      <input id="enrollName" type="text" placeholder="ชื่อผู้สูงอายุ (เว้นว่าง = ค่าเริ่มต้น)">
-      <button class="b-enroll" onclick="enroll()">＋ บันทึกใบหน้าปัจจุบัน</button>
-      <div class="reasons" id="enrollMsg">ให้ผู้สูงอายุหันหน้าเข้ากล้อง แล้วกดบันทึก 5–10 ครั้งจากหลายมุม</div>
-    </div>
+  <!-- ---------------- สั่งปัดยา ---------------- -->
+  <div class="panel">
+    <h2>สั่งปัดยา</h2>
+    <div class="cards" id="slots"></div>
+    <div class="log" id="dispense-log">พร้อม</div>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <div class="label">การตรวจจับใบหน้า</div>
-      <div class="value" id="face">—</div>
+  <!-- ---------------- กล้อง / ตรวจใบหน้า ---------------- -->
+  <div class="panel">
+    <h2>กล้อง — ตรวจจับใบหน้า</h2>
+    <div id="view-wrap">
+      <div id="view-placeholder">กำลังรอภาพจากกล้อง...</div>
+      <iframe id="view" title="video stream" frameborder="0" style="display:none"></iframe>
     </div>
-    <div class="card">
-      <div class="label">อุณหภูมิห้อง</div>
-      <div class="value"><span id="temp">—</span> <span class="unit">°C</span></div>
+    <div class="cfg" style="margin-top:12px">
+      <label>ความมั่นใจ</label>
+      <input type="range" id="conf" min="10" max="95" step="5" value="50" />
+      <span class="unit" id="conf-val">0.50</span>
     </div>
-    <div class="card">
-      <div class="label">ความชื้น</div>
-      <div class="value"><span id="hum">—</span> <span class="unit">%RH</span></div>
-    </div>
-    <div class="card">
-      <div class="label">คะแนนความเสี่ยง</div>
-      <div class="value"><span id="risk">0</span> <span class="unit">/100</span></div>
-      <div class="risk-bar"><div class="risk-fill" id="riskfill"></div></div>
-      <div class="reasons" id="reasons"></div>
-    </div>
+    <div class="log" id="cam-log">กำลังเชื่อมต่อ...</div>
   </div>
 
-  <div class="actions">
-    <button class="b-sos" onclick="action('sos')">🆘 SOS</button>
-    <button class="b-ack" onclick="action('ack')">✓ รับทราบ / หยุดสัญญาณ</button>
-    <button class="b-pill" onclick="action('dispense_a')">💊 จ่ายยา A</button>
-    <button class="b-pill" onclick="action('dispense_b')">💊 จ่ายยา B</button>
-    <button class="b-pill" onclick="action('dispense_c')">💊 จ่ายยา C</button>
-    <button class="b-med" onclick="action('med_taken')">👍 ยืนยันทานยาแล้ว</button>
-  </div>
-
-  <h2>เหตุการณ์ล่าสุด</h2>
-  <div id="events"></div>
-
-  <h2>ผู้ช่วยอัจฉริยะ (Chatbot)</h2>
-  <div class="chat">
-    <div id="chatlog" class="chatlog"></div>
-    <div class="chatbar">
-      <input id="chatInput" type="text" placeholder="พิมพ์ถามได้เลย เช่น วันนี้อากาศเป็นยังไง"
-             onkeydown="if(event.key==='Enter') sendChat()">
-      <button class="b-send" onclick="sendChat()">ส่ง</button>
+  <!-- ---------------- เซนเซอร์ ---------------- -->
+  <div class="panel">
+    <h2>เซนเซอร์บน MCU</h2>
+    <div class="grid3">
+      <div class="stat"><div class="k">อุณหภูมิ</div><div class="v" id="s-temp">—</div></div>
+      <div class="stat"><div class="k">ความชื้น</div><div class="v" id="s-hum">—</div></div>
+      <div class="stat"><div class="k">ใบหน้า</div><div class="v" id="s-face">—</div></div>
     </div>
+    <div class="log" id="sensor-log">อัปเดตทุก 2 วินาที</div>
   </div>
 
-  <div class="foot" id="foot">กำลังเชื่อมต่อ…</div>
+  <!-- ---------------- ตั้งค่า + ทดสอบเซอร์โว ---------------- -->
+  <div class="panel">
+    <h2>ตั้งค่าเซอร์โว <span style="color:var(--warn);font-weight:normal">— ทดสอบตรงนี้ไม่นับจำนวนยา</span></h2>
+    <div class="cards" id="servos"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="ghost" id="home-all">กลับตำแหน่งพักทั้งหมด</button>
+    </div>
+    <div class="log" id="servo-log">พร้อม</div>
+  </div>
 </div>
 
+<script src="libs/socket.io.min.js"></script>
+<script src="libs/arduino.js"></script>
 <script>
-const RISK_COLORS = ["var(--green)","var(--yellow)","var(--red)"];
+const ui = new WebUI();
+const $ = s => document.querySelector(s);
+const log = (el, msg, kind) => { el.textContent = msg; el.className = 'log' + (kind ? ' ' + kind : ''); };
 
-async function refresh() {
-  try {
-    const s = await (await fetch('/api/state', {cache:'no-store'})).json();
-    render(s);
-    document.getElementById('live').style.background = 'var(--green)';
-    document.getElementById('foot').textContent = 'อัปเดตล่าสุด: ' + (s.ts || '');
-  } catch (e) {
-    document.getElementById('live').style.background = 'var(--red)';
-    document.getElementById('foot').textContent = 'ขาดการเชื่อมต่อกับอุปกรณ์…';
-  }
-}
+let SLOTS  = [];
+let LIMITS = { angle_min: -30, angle_max: 180, speed_max: 1000 };  // ทับด้วยค่าจาก MCU
+let SERVOS = [];                                                   // ค่าตั้งรายตัว
 
-function render(s) {
-  document.getElementById('who').textContent = s.person ? '· ' + s.person : '';
-  document.getElementById('face').textContent = s.face_present ? '🟢 พบใบหน้า' : '⚪ ไม่พบ';
+/* ---------------- สั่งปัดยา ---------------- */
+const dispenseLog = $('#dispense-log');
 
-  // Identity badge over the video.
-  const badge = document.getElementById('idBadge');
-  badge.classList.remove('known', 'unknown');
-  if (!s.face_present) {
-    badge.textContent = 'ไม่พบใบหน้า';
-  } else if (s.identity_known && s.identity) {
-    badge.textContent = '✓ ' + s.identity;
-    badge.classList.add('known');
-  } else if (s.recognition_on === false) {
-    badge.textContent = 'พบใบหน้า (ปิดการระบุตัวตน)';
-  } else {
-    badge.textContent = 'ไม่รู้จัก — ยังไม่ลงทะเบียน';
-    badge.classList.add('unknown');
-  }
-  document.getElementById('temp').textContent = fmt(s.temp_c);
-  document.getElementById('hum').textContent  = fmt(s.humidity);
-
-  const score = s.risk_score || 0, level = s.risk_level || 0;
-  document.getElementById('risk').textContent = score;
-  const fill = document.getElementById('riskfill');
-  fill.style.width = score + '%';
-  fill.style.background = RISK_COLORS[level] || RISK_COLORS[0];
-  document.getElementById('reasons').textContent = (s.reasons || []).join(' · ');
-
-  document.getElementById('banner').classList.toggle('on', !!s.alarm);
-
-  const box = document.getElementById('events');
-  box.innerHTML = '';
-  (s.recent || []).forEach(ev => {
-    const row = document.createElement('div');
-    row.className = 'ev';
-    row.innerHTML = `<div class="sev sev-${ev.severity}"></div>`
-      + `<div class="msg">${escapeHtml(ev.message)}</div>`
-      + `<div class="ts">${(ev.ts||'').replace('T',' ')}</div>`;
-    box.appendChild(row);
+function renderSlots(pills) {
+  const host = $('#slots');
+  host.innerHTML = '';
+  SLOTS.forEach((s, i) => {
+    const n = pills && pills[i] != null ? pills[i] : null;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="name">${s.name}</div>
+      <div class="win">${s.window} · ${s.pin}</div>
+      <div class="pills ${n === 0 ? 'empty' : ''}" data-pills="${s.idx}">
+        ${n == null ? '—' : n}<small> เม็ด</small>
+      </div>
+      <button class="big" data-act="dispense" data-idx="${s.idx}" ${n === 0 ? 'disabled' : ''}>
+        ปัดยามื้อ${s.name}
+      </button>
+      <div class="refill">
+        <input type="number" min="0" max="99" value="5" data-refill="${s.idx}" />
+        <button class="ghost" data-act="refill" data-idx="${s.idx}">เติมยา</button>
+      </div>
+    `;
+    host.appendChild(card);
   });
 }
 
-function fmt(v) {
-  if (v === undefined || v === null || v === -127 || v === -1) return '—';
-  return Number(v).toFixed(1);
-}
-function escapeHtml(s) {
-  return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-}
-function action(name) {
-  fetch('/api/' + name, {cache:'no-store'}).then(refresh).catch(()=>{});
-}
-
-function enroll() {
-  const name = document.getElementById('enrollName').value.trim();
-  const q = name ? ('?name=' + encodeURIComponent(name)) : '';
-  fetch('/api/enroll' + q, {cache:'no-store'})
-    .then(r => r.json())
-    .then(d => {
-      document.getElementById('enrollMsg').textContent =
-        `บันทึกใบหน้า "${d.name}" แล้ว — ทั้งหมด ${d.samples} รูป (กดเพิ่มได้อีกเพื่อความแม่นยำ)`;
-    })
-    .catch(() => {
-      document.getElementById('enrollMsg').textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
-    });
-}
-
-// --- chatbot ---
-function addBubble(text, who) {
-  const row = document.createElement('div');
-  row.className = 'msg-row ' + who;
-  const b = document.createElement('div');
-  b.className = 'bubble';
-  b.textContent = text;
-  row.appendChild(b);
-  const log = document.getElementById('chatlog');
-  log.appendChild(row);
-  log.scrollTop = log.scrollHeight;
-  return b;
-}
-
-async function sendChat() {
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-  addBubble(text, 'user');
-  const thinking = addBubble('…', 'bot');
-  try {
-    const d = await (await fetch('/api/chat?q=' + encodeURIComponent(text), {cache:'no-store'})).json();
-    thinking.textContent = d.reply || '(ไม่มีคำตอบ)';
-  } catch (e) {
-    thinking.textContent = 'ขออภัยค่ะ เชื่อมต่อผู้ช่วยไม่ได้';
+$('#slots').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const idx = Number(btn.dataset.idx);
+  if (btn.dataset.act === 'dispense') {
+    ui.send_message('dispense', { idx });
+    log(dispenseLog, 'กำลังสั่งปัดยา...');
+  } else {
+    const n = Number(document.querySelector(`input[data-refill="${idx}"]`).value);
+    ui.send_message('refill', { idx, pills: n });
+    log(dispenseLog, 'กำลังเติมยา...');
   }
-  document.getElementById('chatlog').scrollTop = 1e9;
+});
+
+ui.on_message('dispense_status', d => log(dispenseLog, d.message, d.ok ? 'ok' : 'err'));
+ui.on_message('pills_update', d => renderSlots(d.pills));
+
+/* ---------------- เซอร์โว ---------------- */
+const servoLog = $('#servo-log');
+
+function renderServos() {
+  const host = $('#servos');
+  host.innerHTML = '';
+  SLOTS.forEach((s, i) => {
+    const c = SERVOS[i] || { home: 0, push: -30, speed: 120 };
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="name">${s.name}</div>
+      <div class="win">${s.pin} · ช่วง ${LIMITS.angle_min}…${LIMITS.angle_max}°</div>
+
+      <div class="cfg">
+        <label>ตำแหน่งพัก</label>
+        <input type="number" data-f="home" data-idx="${s.idx}"
+               min="${LIMITS.angle_min}" max="${LIMITS.angle_max}" value="${c.home}" />
+        <span class="unit">°</span>
+      </div>
+      <div class="cfg">
+        <label>ตำแหน่งปัด</label>
+        <input type="number" data-f="push" data-idx="${s.idx}"
+               min="${LIMITS.angle_min}" max="${LIMITS.angle_max}" value="${c.push}" />
+        <span class="unit">°</span>
+      </div>
+      <div class="cfg">
+        <label>ความเร็ว</label>
+        <input type="range" data-f="speed" data-idx="${s.idx}"
+               min="0" max="600" step="10" value="${c.speed}" />
+        <span class="unit spd">${c.speed || 'ทันที'}</span>
+      </div>
+
+      <div class="refill">
+        <button data-act="save" data-idx="${s.idx}">บันทึก</button>
+        <button data-act="servo_pulse" data-idx="${s.idx}" class="ghost">ทดสอบปัด</button>
+        <button data-act="servo_sweep" data-idx="${s.idx}" class="ghost">กวาด 3 รอบ</button>
+      </div>
+
+      <div class="cfg" style="margin-top:10px">
+        <label>สั่งมุมเอง</label>
+        <input type="range" data-f="manual" data-idx="${s.idx}"
+               min="${LIMITS.angle_min}" max="${LIMITS.angle_max}" value="${c.home}" />
+        <span class="unit ang">${c.home}°</span>
+      </div>
+    `;
+    host.appendChild(card);
+
+    // ความเร็ว: อัปเดตป้ายทันที (ยังไม่ส่งจนกว่าจะกดบันทึก)
+    const spd = card.querySelector('input[data-f="speed"]');
+    spd.addEventListener('input', () => {
+      card.querySelector('.spd').textContent = Number(spd.value) ? spd.value + '°/วิ' : 'ทันที';
+    });
+
+    // สั่งมุมเอง: ส่งตอนปล่อยนิ้ว — servo_write ฝั่ง MCU บล็อกจนขยับเสร็จ
+    const man = card.querySelector('input[data-f="manual"]');
+    man.addEventListener('input', () => {
+      card.querySelector('.ang').textContent = man.value + '°';
+    });
+    man.addEventListener('change', () => {
+      ui.send_message('servo_write', { idx: s.idx, angle: Number(man.value) });
+    });
+  });
 }
 
-// Live video: MJPEG stream (one connection, high fps). Falls back to base64
-// frame polling only if the stream fails to load.
-let polling = false;
-async function frameLoop() {
+$('#servos').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const idx = Number(btn.dataset.idx);
+
+  if (btn.dataset.act === 'save') {
+    const card = btn.closest('.card');
+    const val = f => Number(card.querySelector(`input[data-f="${f}"]`).value);
+    ui.send_message('set_servo_config', {
+      idx, home: val('home'), push: val('push'), speed: val('speed'),
+    });
+    log(servoLog, 'กำลังบันทึก...');
+  } else {
+    ui.send_message(btn.dataset.act, { idx });
+    log(servoLog, 'กำลังส่งคำสั่ง...');
+  }
+});
+
+ui.on_message('servo_config_update', d => { SERVOS = d.servos; renderServos(); });
+
+$('#home-all').addEventListener('click', () => ui.send_message('servo_home', {}));
+ui.on_message('servo_status', d => log(servoLog, d.message, d.ok ? 'ok' : 'err'));
+
+/* ---------------- กล้อง / ตรวจใบหน้า ---------------- */
+async function initCamera() {
+  const camLog = $('#cam-log');
+  const frame = $('#view');
+  const holder = $('#view-placeholder');
   try {
-    const d = await (await fetch('/api/frame', {cache:'no-store'})).json();
-    if (d.jpg) document.getElementById('cam').src = d.jpg;
-  } catch (e) { /* keep last frame */ }
-  setTimeout(frameLoop, 80);
-}
-function startVideo() {
-  const cam = document.getElementById('cam');
-  cam.onerror = () => { if (!polling) { polling = true; frameLoop(); } };
-  cam.src = '/video';   // MJPEG multipart stream
+    const r = await (await fetch('/api/cam/status')).json();
+    if (!r.ok) { log(camLog, r.error || 'ตัวตรวจใบหน้าไม่พร้อม', 'err'); return; }
+
+    // brick เสิร์ฟภาพที่พอร์ตของตัวเอง ไม่ใช่พอร์ตเดียวกับหน้านี้
+    const url = `http://${location.hostname}:${r.port}${r.path}`;
+    frame.onload = () => {
+      clearInterval(retry);
+      holder.style.display = 'none';
+      frame.style.display = 'block';
+      log(camLog, 'สตรีมจาก ' + url, 'ok');
+    };
+    // brick ใช้เวลาโหลดโมเดลสักพัก ลองซ้ำจนกว่าจะติด
+    const retry = setInterval(() => { frame.src = url; }, 1500);
+    frame.src = url;
+    log(camLog, 'กำลังรอ brick ตรวจใบหน้าเริ่มทำงาน...');
+  } catch (e) {
+    log(camLog, 'เช็คสถานะกล้องไม่สำเร็จ: ' + e, 'err');
+  }
 }
 
-refresh();
-setInterval(refresh, 1000);
-startVideo();
+$('#conf').addEventListener('input', () => {
+  $('#conf-val').textContent = ($('#conf').value / 100).toFixed(2);
+});
+$('#conf').addEventListener('change', () => {
+  ui.send_message('set_confidence', { confidence: Number($('#conf').value) / 100 });
+});
+
+ui.on_message('cam_status', d => {
+  log($('#cam-log'), d.ok ? `ปรับความมั่นใจเป็น ${d.confidence}` : d.error, d.ok ? 'ok' : 'err');
+});
+
+// อัปเดตช่องใบหน้าแบบเรียลไทม์ ไม่ต้องรอ poll 2 วินาที
+ui.on_message('face_update', d => {
+  $('#s-face').textContent = d.face ? 'พบ' : 'ไม่พบ';
+});
+
+/* ---------------- เซนเซอร์ ---------------- */
+async function pollSensors() {
+  try {
+    const r = await (await fetch('/api/sensors')).json();
+    $('#s-temp').textContent = r.temperature == null ? '—' : r.temperature.toFixed(1) + ' °C';
+    $('#s-hum').textContent  = r.humidity    == null ? '—' : r.humidity.toFixed(1) + ' %';
+    $('#s-face').textContent = r.face == null ? '—' : (r.face ? 'พบ' : 'ไม่พบ');
+    if (r.pills) renderSlots(r.pills);
+    log($('#sensor-log'), r.errors ? r.errors.join(' | ') : 'อัปเดตทุก 2 วินาที', r.errors ? 'err' : '');
+  } catch (e) {
+    log($('#sensor-log'), 'อ่านเซนเซอร์ไม่สำเร็จ: ' + e, 'err');
+  }
+}
+
+/* ---------------- เริ่มต้น ---------------- */
+(async () => {
+  try {
+    const r = await (await fetch('/api/slots')).json();
+    SLOTS = r.slots;
+    if (r.limits) LIMITS = r.limits;
+    if (r.servos) SERVOS = r.servos;
+    renderSlots(r.pills);
+    renderServos();
+  } catch (e) {
+    log(dispenseLog, 'โหลดรายการช่องยาไม่สำเร็จ: ' + e, 'err');
+  }
+  initCamera();
+  pollSensors();
+  setInterval(pollSensors, 2000);
+})();
 </script>
 </body>
 </html>

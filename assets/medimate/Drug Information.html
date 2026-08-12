@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Medimate AI - Drug Information</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&family=Kanit:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <!-- Firebase (Compat เหมือนหน้า main) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root{
+      --bg1:#eaf7fd;
+      --bg2:#d7f4ff;
+      --primary:#1899e2;
+      --text:#2276a7;
+      --card:#ffffff;
+      --shadow: rgba(33,184,225,.18);
+      --stroke: rgba(120,210,255,.35);
+      --chip1:#27ade6;
+      --chip2:#46e8f6;
+      --chip1a:#198abf;
+      --chip2a:#38dbfd;
+      --mint1:#00c6ff;
+      --mint2:#00e6b8;
+    }
+
+    html {
+      /* เพิ่มขนาดตัวอักษรพื้นฐานทั้งเว็บ (จาก 16px เป็น 19px) เพื่อให้อ่านง่ายขึ้นสำหรับผู้สูงอายุ */
+      font-size: 19px;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: 'Prompt','Kanit',sans-serif;
+      background: linear-gradient(120deg, var(--bg1) 0%, var(--bg2) 100%);
+      line-height: 1.5;
+    }
+    /* ให้เห็นกรอบโฟกัสชัดเจนเวลากดคีย์บอร์ด/แป้น Tab */
+    a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid #ff9800;
+      outline-offset: 3px;
+    }
+
+    /* =============== Topbar =============== */
+    .topbar{
+      height:84px;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 32px;
+      box-shadow:0 2px 14px rgba(80,150,200,.09);
+      border-radius:0 0 18px 18px;
+      position:sticky;
+      top:0;
+      z-index:40;
+    }
+    .logo-group{ display:flex; align-items:center; gap:10px; }
+    .logo-img{ height:78px; width:auto; object-fit:contain; }
+
+    .topbar-actions{ display:flex; gap:16px; }
+    .home-btn,.profile-btn{
+      width:58px;height:58px;border:none;border-radius:50%;
+      cursor:pointer;color:#fff;font-size:1.6rem;
+      background:linear-gradient(90deg,#1aa9d6,#17b8a3);
+      box-shadow:0 2px 8px rgba(0,179,179,.25);
+      transition: transform .12s, filter .12s;
+      position:relative; overflow:hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .profile-btn{ background:linear-gradient(90deg,#0f8fc7,#14a89a); }
+    .home-btn:hover,.profile-btn:hover{ transform:scale(1.06); filter:saturate(1.1); }
+    .home-btn:active,.profile-btn:active{ transform:scale(.96); }
+
+    /* =============== Header =============== */
+    .header-section{
+      text-align:center;
+      padding:28px 5vw 10px;
+      animation: fadeInUp .45s ease both;
+    }
+    .header-title{
+      font-size:2.3rem;
+      font-weight:800;
+      color:#0c4a72;
+      margin-bottom:10px;
+      letter-spacing:.2px;
+      text-shadow:0 2px 12px rgba(33,184,225,.10);
+    }
+    .header-desc{
+      font-size:1.2rem;
+      font-weight:600;
+      color:#0a4d78;
+      line-height:1.6;
+      max-width:900px;
+      margin:0 auto;
+    }
+
+    /* =============== Layout =============== */
+    .container-modern{
+      max-width:760px;
+      margin:0 auto;
+      padding:0 4vw 34px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    /* =============== Tube Bar =============== */
+    .modern-sidebar{
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      background: linear-gradient(120deg, var(--bg1), var(--bg2));
+      padding:12px;
+      border-radius:18px;
+      border:1px solid var(--stroke);
+      box-shadow:0 10px 22px rgba(33,184,225,.14);
+      position:sticky;
+      top:84px;
+      z-index:30;
+      animation: fadeInUp .5s ease both;
+    }
+    .modern-tube-btn{
+      flex:1;
+      border:none;
+      border-radius:16px;
+      min-height:64px;
+      font-size:1.15rem;
+      font-weight:800;
+      color:#fff;
+      background:linear-gradient(90deg,var(--chip1),var(--chip2));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      cursor:pointer;
+      box-shadow:0 10px 18px rgba(33,184,225,.18);
+      transition: transform .12s, filter .12s, box-shadow .12s;
+      position:relative;
+      overflow:hidden;
+      -webkit-tap-highlight-color: transparent;
+      user-select:none;
+    }
+    .modern-tube-btn:hover{ transform: translateY(-1px); filter:saturate(1.08); }
+    .modern-tube-btn:active{ transform: scale(.985); }
+    .modern-tube-btn.selected{
+      background:linear-gradient(90deg,var(--chip1a),var(--chip2a));
+      box-shadow:0 14px 26px rgba(33,184,225,.22);
+      transform: scale(1.03);
+    }
+    .modern-tube-btn i{ font-size:1.2rem; opacity:.95; }
+
+    /* =============== Card =============== */
+    .drug-card-modern{
+      background:var(--card);
+      border-radius:24px;
+      padding:18px 16px 20px;
+      box-shadow:0 14px 34px rgba(41,180,225,.22);
+      margin:0 2vw 10px;          /* ✅ เว้นซ้ายขวาสวย */
+      border:1px solid rgba(180,235,255,.55);
+      animation: fadeInUp .55s ease both;
+      position:relative;
+      overflow:hidden;
+    }
+    .drug-card-modern h2{
+      text-align:center;
+      font-size:1.35rem;
+      color:#0a5a94;
+      margin:4px 0 14px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+
+    /* hint (แสดงเฉพาะตอนยังไม่มีรายการ) */
+    .empty-hint{
+      background:#e8f8ff;
+      border:1px solid #bfe9ff;
+      color:#0a5a94;
+      padding:14px 16px;
+      border-radius:14px;
+      font-weight:700;
+      font-size:1.05rem;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin: 2px 0 14px;
+    }
+
+    /* list */
+    .drug-list{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      margin-top:4px;
+    }
+    .drug-item{
+      background:#f4fbff;
+      border-radius:16px;
+      border:1px solid #cbe7fa;
+      padding:16px 16px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      box-shadow:0 6px 14px rgba(33,184,225,.08);
+      transition: transform .12s, box-shadow .12s;
+      animation: pop .22s ease both;
+    }
+    .drug-item:hover{
+      transform: translateY(-1px);
+      box-shadow:0 12px 24px rgba(33,184,225,.14);
+    }
+    .drug-main{
+      min-width:0;
+      flex:1;
+    }
+    .drug-title-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:4px;
+    }
+    .drug-title{
+      font-weight:800;
+      color:#0a5a94;
+      font-size:1.25rem;
+      max-width:220px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .drug-count{
+      color:#0a5a94;
+      font-weight:800;
+      font-size:1.1rem;
+      white-space:nowrap;
+    }
+    .drug-desc{
+      font-size:1.1rem;
+      color:#0a4d78;
+      line-height:1.4;
+      word-break:break-word;
+    }
+    .drug-actions{
+      display:flex;
+      gap:10px;
+      flex-shrink:0;
+    }
+    .action-btn{
+      width:50px;height:50px;
+      border:none;border-radius:14px;
+      background:#eaf8ff;
+      color:#0f8fc7;
+      font-size:1.2rem;
+      cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition: transform .12s, background .12s, color .12s;
+      -webkit-tap-highlight-color: transparent;
+      position:relative; overflow:hidden;
+    }
+    .action-btn:hover{ transform:scale(1.06); background:#d9f3ff; }
+    .action-btn.danger:hover{ color:#eb3030; background:#ffecef; }
+    .action-btn:active{ transform:scale(.96); }
+
+    /* add button */
+    .add-drug-btn{
+      width:100%;
+      margin-top:14px;
+      padding:18px 0;
+      border:none;
+      border-radius:18px;
+      font-size:1.3rem;
+      font-weight:900;
+      color:#fff;
+      background:linear-gradient(90deg,var(--mint1),var(--mint2));
+      cursor:pointer;
+      box-shadow:0 10px 20px rgba(0,200,200,.22);
+      transition: transform .12s, filter .12s;
+      position:relative; overflow:hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .add-drug-btn:hover{ transform: translateY(-1px); filter:saturate(1.05); }
+    .add-drug-btn:active{ transform: scale(.985); }
+
+    /* =============== Modal =============== */
+    .drug-form-modal-bg{
+      position:fixed; inset:0;
+      background: rgba(30,65,120,.16);
+      z-index:99;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+    }
+    .drug-form-modal{
+      width: min(440px, 94vw);
+      background:#fff;
+      border-radius:22px;
+      box-shadow:0 18px 70px rgba(33,184,225,.28);
+      padding:22px 20px 18px;
+      animation: modalIn .22s ease both;
+      border:1px solid rgba(180,235,255,.55);
+    }
+    .modal-title{
+      font-size:1.45rem;
+      font-weight:900;
+      color:#0c4a72;
+      text-align:center;
+      margin:6px 0 16px;
+    }
+    .modal-field{ margin-bottom:14px; }
+    .modal-label{
+      font-weight:800;
+      color:#0a5a94;
+      margin-bottom:6px;
+      font-size:1.12rem;
+    }
+    .modal-input, .modal-textarea{
+      width:100%;
+      box-sizing:border-box;
+      border-radius:14px;
+      border:1.2px solid #cbe7fa;
+      background:#f7fcff;
+      padding:14px 14px;
+      font-size:1.12rem;
+      font-family:'Prompt','Kanit',sans-serif;
+      color:#0a4d78;
+      outline:none;
+    }
+    .modal-textarea{ resize:none; }
+    .modal-input:focus, .modal-textarea:focus{
+      border:2px solid #24b3f5;
+      background:#fff;
+    }
+    .error-modern{
+      color:#eb3030;
+      font-size:1.05rem;
+      min-height:1.2em;
+      display:block;
+      margin:6px 0 0 2px;
+      font-weight:700;
+    }
+    .modal-actions{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      margin-top:14px;
+    }
+    .modal-btn{
+      border:none;
+      border-radius:14px;
+      padding:14px 18px;
+      cursor:pointer;
+      font-weight:900;
+      font-family:'Prompt','Kanit',sans-serif;
+      font-size:1.1rem;
+      transition: transform .12s, filter .12s;
+      -webkit-tap-highlight-color: transparent;
+      position:relative; overflow:hidden;
+    }
+    .modal-btn.cancel{
+      background:#ebf7fc;
+      color:#0f8fc7;
+    }
+    .modal-btn.save{
+      background:linear-gradient(90deg,#1dc1f3,#39e1c9);
+      color:#fff;
+    }
+    .modal-btn:active{ transform:scale(.98); }
+
+    /* =============== Ripple =============== */
+    .ripple {
+      position: absolute;
+      border-radius: 999px;
+      transform: scale(0);
+      animation: ripple 520ms ease-out;
+      background: rgba(0, 150, 199, 0.22);
+      pointer-events: none;
+    }
+    @keyframes ripple { to { transform: scale(3.2); opacity: 0; } }
+
+    /* =============== Animations =============== */
+    @keyframes fadeInUp {
+      from { opacity:0; transform: translateY(14px); }
+      to { opacity:1; transform: translateY(0); }
+    }
+    @keyframes modalIn {
+      from { opacity:0; transform: translateY(12px) scale(.98); }
+      to { opacity:1; transform: translateY(0) scale(1); }
+    }
+    @keyframes pop {
+      from { opacity:0; transform: scale(.985); }
+      to { opacity:1; transform: scale(1); }
+    }
+
+    /* =============== Responsive (iPad & Mobile) =============== */
+    @media (max-width: 1100px){
+      .header-title{ font-size:1.85rem; }
+      .header-desc{ font-size:1.1rem; }
+      .topbar{ padding:0 12px; }
+      .logo-img{ height:60px; }
+    }
+
+    /* ✅ มือถือ: ชิดใต้หัวข้อ + เว้นซ้ายขวาสวย + เหมือนภาพ */
+    @media (max-width: 650px){
+      .topbar{ height:66px; padding:0 3.5vw; }
+      .logo-img{ height:56px; }
+      .home-btn,.profile-btn{ width:48px;height:48px;font-size:1.25rem; }
+
+      .header-section{ padding:16px 3.5vw 8px; }
+      .header-title{ font-size:1.55rem; margin-bottom:8px; }
+      .header-desc{ font-size:1.05rem; }
+
+      .container-modern{ padding:0 3.5vw 26px; gap:10px; }
+
+      /* แถบยาหลอดชิดใต้หัวข้อ + sticky ใต้ topbar มือถือ */
+      .modern-sidebar{
+        top:66px;
+        padding:10px;
+        border-radius:16px;
+      }
+      .modern-tube-btn{
+        min-height:56px;
+        font-size:1rem;
+        border-radius:16px;
+      }
+
+      /* ✅ การ์ดเว้นซ้ายขวาแบบดูดี (ไม่ติดขอบ) */
+      .drug-card-modern{
+        margin:0 1vw 12px;
+        border-radius:22px;
+        padding:16px 14px 16px;
+      }
+
+      .drug-title{ max-width: 150px; font-size: 1.1rem; }
+      .drug-count{ font-size: 1rem; }
+      .drug-desc{ font-size: 1rem; }
+      .action-btn{ width:46px; height:46px; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo-group">
+      <img src="images/MedimateAI.png" alt="Medimate Logo" class="logo-img">
+    </div>
+    <div class="topbar-actions">
+      <button class="home-btn tap-btn" onclick="location.href='main.html'" title="Home">
+        <i class="fa-solid fa-house"></i>
+      </button>
+      <button class="profile-btn tap-btn" onclick="location.href='profile.html'" title="Profile">
+        <i class="fa-solid fa-user"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="header-section">
+    <div class="header-title">ข้อมูลยา (Drug Information)</div>
+    <div class="header-desc">
+      รายละเอียดของยาแต่ละชนิด เพื่อให้ผู้ใช้สามารถเข้าใจและใช้ยาได้อย่างถูกต้องและปลอดภัย
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="container-modern">
+    <div class="modern-sidebar" id="tubeBar">
+      <button class="modern-tube-btn selected tap-card" id="tubeBtn1" onclick="selectTube(0)">
+        <i class="fa-solid fa-prescription-bottle-medical"></i> ยาหลอดที่ 1
+      </button>
+      <button class="modern-tube-btn tap-card" id="tubeBtn2" onclick="selectTube(1)">
+        <i class="fa-solid fa-prescription-bottle-medical"></i> ยาหลอดที่ 2
+      </button>
+      <button class="modern-tube-btn tap-card" id="tubeBtn3" onclick="selectTube(2)">
+        <i class="fa-solid fa-prescription-bottle-medical"></i> ยาหลอดที่ 3
+      </button>
+    </div>
+
+    <div class="drug-card-modern" id="drugCard">
+      <h2 id="tubeLabel">Medication Tube 1</h2>
+
+      <div id="emptyHint" class="empty-hint">
+        <i class="fa-solid fa-circle-info"></i>
+        จัดการรายการยาในหลอดนี้
+      </div>
+
+      <div class="drug-list" id="drugList"></div>
+
+      <button class="add-drug-btn tap-card" onclick="openDrugModal()">
+        + เพิ่มยา
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalBg" class="drug-form-modal-bg">
+    <div class="drug-form-modal">
+      <div class="modal-title" id="modalTitle">เพิ่มยาใหม่</div>
+
+      <div class="modal-field">
+        <div class="modal-label">ชื่อยา</div>
+        <input class="modal-input" id="modalDrugName" maxlength="50" autocomplete="off" placeholder="เช่น พาราเซตามอล">
+      </div>
+
+      <div class="modal-field">
+        <div class="modal-label">รายละเอียด</div>
+        <textarea class="modal-textarea" id="modalDrugDetail" rows="2" maxlength="200" placeholder="เช่น ลดไข้ บรรเทาปวด"></textarea>
+      </div>
+
+      <div class="modal-field">
+        <div class="modal-label">จำนวนเม็ด</div>
+        <input class="modal-input" id="modalDrugCount" type="number" min="1" max="99" value="1">
+      </div>
+
+      <span id="modalError" class="error-modern"></span>
+
+      <div class="modal-actions">
+        <button class="modal-btn cancel tap-card" onclick="closeDrugModal()">ยกเลิก</button>
+        <button class="modal-btn save tap-card" onclick="saveDrugModal()">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Firebase (medimate-end) =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyAM5gSwcz9CWcZFcYW9VPOOckWouXj7Ehw",
+      authDomain: "medimate-end.firebaseapp.com",
+      projectId: "medimate-end",
+      storageBucket: "medimate-end.firebasestorage.app",
+      messagingSenderId: "411322830334",
+      appId: "1:411322830334:web:c08cdb63ea9fff1a9444af",
+      measurementId: "G-CZLM5M88BE"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // ===== State =====
+    let userUid = null;
+    let tubes = [[], [], []];
+    let currentTube = 0;
+    let editingDrugIdx = null;
+
+    // ===== Elements =====
+    const tubeBtns = [
+      document.getElementById('tubeBtn1'),
+      document.getElementById('tubeBtn2'),
+      document.getElementById('tubeBtn3')
+    ];
+    const tubeLabel = document.getElementById('tubeLabel');
+    const drugList = document.getElementById('drugList');
+    const emptyHint = document.getElementById('emptyHint');
+
+    const modalBg = document.getElementById('modalBg');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDrugName = document.getElementById('modalDrugName');
+    const modalDrugDetail = document.getElementById('modalDrugDetail');
+    const modalDrugCount = document.getElementById('modalDrugCount');
+    const modalError = document.getElementById('modalError');
+
+    // ===== Firestore paths =====
+    function tubeDocRef(idx){
+      // users/{uid}/tubes/tube{1..3}
+      return db.collection('users').doc(userUid).collection('tubes').doc('tube' + (idx + 1));
+    }
+
+    async function loadDrugsFromFirestore(){
+      if(!userUid) return;
+      for(let i=0;i<3;i++){
+        const doc = await tubeDocRef(i).get();
+        tubes[i] = doc.exists ? (doc.data().drugs || []) : [];
+      }
+      renderTube(currentTube);
+    }
+
+    async function saveDrugsToFirestore(tubeIdx){
+      if(!userUid) return;
+      await tubeDocRef(tubeIdx).set({ drugs: tubes[tubeIdx] }, { merge:true });
+    }
+
+    // ===== Render =====
+    function renderTube(idx){
+      tubeBtns.forEach((btn, i) => btn.classList.toggle('selected', i === idx));
+      tubeLabel.textContent = `Medication Tube ${idx + 1}`;
+
+      drugList.innerHTML = "";
+
+      const list = tubes[idx] || [];
+      const hasItems = list.length > 0;
+
+      // ✅ ถ้ามีรายการแล้ว ให้ซ่อนข้อความ “จัดการรายการยาในหลอดนี้”
+      emptyHint.style.display = hasItems ? "none" : "flex";
+
+      if(!hasItems) return;
+
+      list.forEach((drug, i) => {
+        const item = document.createElement('div');
+        item.className = 'drug-item';
+        item.innerHTML = `
+          <div class="drug-main">
+            <div class="drug-title-row">
+              <span class="drug-title">${escapeHtml(drug.name)}</span>
+              <span class="drug-count">${Number(drug.count || 1)} เม็ด</span>
+            </div>
+            <div class="drug-desc">${escapeHtml(drug.detail || "")}</div>
+          </div>
+          <div class="drug-actions">
+            <button class="action-btn tap-card" title="แก้ไข" onclick="editDrug(${i})"><i class="fa-solid fa-pen"></i></button>
+            <button class="action-btn danger tap-card" title="ลบ" onclick="deleteDrug(${i})"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        `;
+        drugList.appendChild(item);
+      });
+    }
+
+    function selectTube(idx){
+      currentTube = idx;
+      renderTube(currentTube);
+    }
+
+    // ===== Modal =====
+    function openDrugModal(editIdx = null){
+      editingDrugIdx = editIdx;
+
+      if(editIdx !== null && tubes[currentTube][editIdx]){
+        const d = tubes[currentTube][editIdx];
+        modalTitle.textContent = "แก้ไขข้อมูลยา";
+        modalDrugName.value = d.name || "";
+        modalDrugDetail.value = d.detail || "";
+        modalDrugCount.value = d.count || 1;
+      }else{
+        modalTitle.textContent = "เพิ่มยาใหม่";
+        modalDrugName.value = "";
+        modalDrugDetail.value = "";
+        modalDrugCount.value = 1;
+      }
+
+      modalError.textContent = "";
+      modalBg.style.display = "flex";
+      setTimeout(() => modalDrugName.focus(), 120);
+    }
+
+    function closeDrugModal(){
+      modalBg.style.display = "none";
+      editingDrugIdx = null;
+    }
+
+    async function saveDrugModal(){
+      const name = modalDrugName.value.trim();
+      const detail = modalDrugDetail.value.trim();
+      const count = parseInt(modalDrugCount.value, 10);
+
+      if(!name){
+        modalError.textContent = "กรุณากรอกชื่อยา";
+        modalDrugName.focus();
+        return;
+      }
+      if(isNaN(count) || count < 1 || count > 99){
+        modalError.textContent = "จำนวนเม็ดต้องเป็นเลข 1-99";
+        modalDrugCount.focus();
+        return;
+      }
+
+      const payload = { name, detail, count };
+
+      if(editingDrugIdx !== null){
+        tubes[currentTube][editingDrugIdx] = payload;
+      }else{
+        tubes[currentTube].push(payload);
+      }
+
+      await saveDrugsToFirestore(currentTube);
+      closeDrugModal();
+      renderTube(currentTube);
+    }
+
+    function editDrug(idx){ openDrugModal(idx); }
+
+    async function deleteDrug(idx){
+      if(!confirm("ต้องการลบยานี้ใช่หรือไม่?")) return;
+      tubes[currentTube].splice(idx, 1);
+      await saveDrugsToFirestore(currentTube);
+      renderTube(currentTube);
+    }
+
+    // ===== Auth Guard (เหมือนหน้า main) =====
+    auth.onAuthStateChanged(async (user) => {
+      if(!user){
+        // ถ้าไม่ได้ login ให้กลับหน้า login
+        window.location.replace("login.html");
+        return;
+      }
+      userUid = user.uid;
+      await loadDrugsFromFirestore();
+    });
+
+    // ===== Close modal when click outside =====
+    modalBg.addEventListener("mousedown", (e) => {
+      if(e.target === modalBg) closeDrugModal();
+    });
+
+    // Enter to save
+    [modalDrugName, modalDrugDetail, modalDrugCount].forEach(el=>{
+      el.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter" && !(el === modalDrugDetail && e.shiftKey)){
+          e.preventDefault();
+          saveDrugModal();
+        }
+      });
+    });
+
+    // expose for inline onclick
+    window.selectTube = selectTube;
+    window.openDrugModal = openDrugModal;
+    window.closeDrugModal = closeDrugModal;
+    window.saveDrugModal = saveDrugModal;
+    window.editDrug = editDrug;
+    window.deleteDrug = deleteDrug;
+
+    // ===== Ripple (touch/pen เท่านั้น) =====
+    function addRipple(el, x, y){
+      const rect = el.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      const ripple = document.createElement("span");
+      ripple.className = "ripple";
+      ripple.style.width = ripple.style.height = size + "px";
+      ripple.style.left = (x - rect.left - size / 2) + "px";
+      ripple.style.top  = (y - rect.top  - size / 2) + "px";
+      el.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 560);
+    }
+    document.querySelectorAll(".tap-card, .tap-btn").forEach(el=>{
+      el.addEventListener("pointerdown", (e)=>{
+        const isTouchLike = e.pointerType === "touch" || e.pointerType === "pen";
+        if(!isTouchLike) return;
+        addRipple(el, e.clientX, e.clientY);
+      });
+    });
+
+    // ===== Helpers =====
+    function escapeHtml(str){
+      return String(str || "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+  </script>
+</body>
+</html>

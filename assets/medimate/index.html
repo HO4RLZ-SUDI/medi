@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medimate AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+  <link rel="icon" href="images/MedimateLoGo.png" type="image/png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Prompt', sans-serif;
+      background: linear-gradient(to bottom right, #c2e9fb, #81c7f5);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 75vh;
+      padding: 18px;
+    }
+
+    /* ✅ การ์ดเล็กลง + ดูนุ่มขึ้น */
+    .card {
+      background: rgba(255,255,255,0.92);
+      border-radius: 22px;
+      padding: 34px 26px;              /* ลดจาก 48 36 */
+      box-shadow: 0 10px 28px rgba(0,0,0,0.10);
+      text-align: center;
+      animation: fadein 0.85s cubic-bezier(.62,1.35,.49,1) both;
+      width: 100%;
+      max-width: 330px;                /* ลดจาก 370 */
+      border: 1px solid rgba(255,255,255,0.75);
+      backdrop-filter: blur(6px);
+    }
+
+    /* ✅ โลโก้เล็กลงนิด + ระยะห่างน้อยลง */
+    .logo-img {
+      width: 96px;                     /* ลดจาก 110 */
+      height: 96px;
+      border-radius: 20px;
+      margin-bottom: 12px;             /* ลดให้ title ใกล้ขึ้น */
+      object-fit: cover;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.09);
+      animation: logo-pop 1.1s cubic-bezier(.7,1.4,.43,1) .08s both;
+      background: #f3faff;
+    }
+
+    @keyframes logo-pop {
+      0% { transform: scale(.75) rotate(-4deg); opacity: 0; }
+      75% { transform: scale(1.12) rotate(5deg);}
+      100% { transform: scale(1) rotate(0); opacity: 1;}
+    }
+
+    /* ✅ หัวข้อใกล้ขึ้น + หนาแน่นขึ้นนิด */
+    .title {
+      font-size: 1.75rem;              /* ลดจาก 2rem */
+      font-weight: 700;
+      color: #1d84c6;
+      margin-bottom: 8px;              /* ลดจาก 10 */
+      margin-top: -2px;                /* ดันเข้าใกล้โลโก้อีกนิด */
+      letter-spacing: 0.01em;
+      line-height: 1.18;
+    }
+
+    .subtitle {
+      font-size: 1rem;                 /* ลดนิด */
+      color: #497199;
+      margin-bottom: 22px;             /* ลดจาก 32 */
+      letter-spacing: .02em;
+      line-height: 1.55;
+    }
+
+    .btn {
+      font-size: 1.05rem;
+      padding: 11px 26px;              /* ลดนิดให้สมส่วน */
+      background: linear-gradient(90deg, #00b4d8, #0077b6);
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 2px 12px #51c0e448;
+      transition: background 0.3s, transform 0.17s, box-shadow .13s;
+      outline: none;
+      position: relative;
+    }
+    .btn:focus, .btn:hover {
+      background: linear-gradient(90deg, #0096c7, #023e8a);
+      transform: translateY(-1px) scale(1.035); /* นุ่มกว่า scale ล้วน */
+      box-shadow: 0 6px 20px #60b4e485;
+    }
+    .btn i {
+      margin-right: 7px;
+      font-size: 1.02em;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.9rem;
+      background: #328ec7;
+      color: #e8f7ff;
+      padding: 5px 0 2px 0;
+      width: 100vw;
+      letter-spacing: 0.01em;
+      box-shadow: 0 -2px 18px #8be7fc33;
+      min-height: unset;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(22px) scale(.97);}
+      to   { opacity: 1; transform: translateY(0) scale(1);}
+    }
+
+    @media (max-width: 600px) {
+      .card { padding: 30px 9vw; max-width: 340px; }
+      .title { font-size: 1.35rem; margin-top: 0; }
+      .logo-img { width: 78px; height: 78px; border-radius: 16px; margin-bottom: 10px; }
+      .subtitle { font-size: 0.95rem; margin-bottom: 18px; }
+      footer { font-size: 0.82rem; padding: 3px 0 1px 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <img src="images/MedimateLoGo.png" alt="โลโก้ Medimate AI" class="logo-img">
+      <div class="title">ยินดีต้อนรับสู่<br>Medimate AI</div>
+      <div class="subtitle">
+        นวัตกรรมหุ่นยนต์<br>ผู้ช่วยดูแลสุขภาพผู้สูงอายุ
+      </div>
+      <button class="btn" onclick="window.location.href='login.html'" tabindex="0" aria-label="เริ่มต้นใช้งาน">
+        <i class="fas fa-arrow-right"></i> เริ่มต้นใช้งาน
+      </button>
+    </div>
+  </main>
+  <footer>
+    © 2025 Medimate AI — ดูแลด้วยใจ ใส่ใจด้วยเทคโนโลยี
+  </footer>
+</body>
+</html>

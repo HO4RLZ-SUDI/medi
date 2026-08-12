@@ -1,8 +1,22 @@
-name: ElderCare AI
-icon: 🟦
-description: ระบบดูแลผู้สูงอายุอัจฉริยะ (AIoT) — ตรวจจับการล้ม, เซนเซอร์, แจ้งเตือนผู้ดูแล บน Arduino UNO Q
+# app.yaml — ไฟล์ config หลักของ Arduino App
+# App Lab อ่านไฟล์นี้จาก root ของโปรเจกต์
 
-# App Lab "Bricks" (managed services, usually Docker containers on the Linux side).
-# The caregiver dashboard is served by the web_ui brick.
+# ชื่อที่แสดงใน App Lab
+name: ElderCare AI
+
+icon: 🟦
+
+description: ระบบดูแลผู้สูงอายุอัจฉริยะ (AIoT) — ตู้จ่ายยาอัตโนมัติ, จดจำใบหน้า, เซนเซอร์, แจ้งเตือนผู้ดูแล บน Arduino UNO Q
+
+# พอร์ตที่แอปเปิด
+#   8001 = หน้าเว็บของเรา (ตรงกับ WEB_PORT ใน python/main.py)
+#   4912 = ภาพพรีวิวจาก brick video_object_detection (เสิร์ฟที่ /embed)
+ports: [8001, 4912]
+
+# Bricks ที่ใช้
+#   video_object_detection + model: face-detection -> ตรวจใบหน้าจาก USB webcam
+#   brick ตัวนี้ยึดกล้องไว้เอง จึงไม่ต้องเปิด USBCamera ซ้ำ
 bricks:
-  - arduino:web_ui
+- arduino:video_object_detection:
+    model: face-detection
+- arduino:web_ui: {}

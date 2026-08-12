@@ -11,9 +11,20 @@ build/
 *.hex
 
 # Local runtime data (privacy: never commit personal data)
-python/faces/        # enrolled face images
-*.sqlite3            # local care database
+# NOTE: git อ่าน # เป็นคอมเมนต์เฉพาะต้นบรรทัด ห้ามเขียนต่อท้าย pattern
+# enrolled face images
+python/faces/
+# local care database
+*.sqlite3
+# auto-downloaded face-recognition model (~37 MB)
+python/sface.onnx
+# runtime data ของ medimate.py (ประวัติจ่ายยา / ชื่อยาในหลอด)
+.medimate/
 
 # Editor / OS
 .DS_Store
 *.swp
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/settings.local.json.tmp.*

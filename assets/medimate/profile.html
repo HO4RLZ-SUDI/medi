@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medimate AI - Profile</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&family=Kanit:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <style>
+    :root{
+      --bg1:#eaf7fd;
+      --bg2:#d7f4ff;
+      --card:#ffffff;
+      --text:#0f2940;
+      --muted:#0a4d78;
+      --primary:#1dc1f3;
+      --primary2:#39e1c9;
+      --line:#cfefff;
+      --shadow: 0 10px 34px rgba(41,180,225,0.18), 0 2px 12px rgba(176,234,253,0.20);
+      --r:22px;
+    }
+
+    html {
+      /* เพิ่มขนาดตัวอักษรพื้นฐานทั้งเว็บ (จาก 16px เป็น 19px) เพื่อให้อ่านง่ายขึ้นสำหรับผู้สูงอายุ */
+      font-size: 19px;
+    }
+    html,body{
+      min-height:100%;
+      margin:0;
+      padding:0;
+      font-family:'Prompt','Kanit',sans-serif;
+      background: linear-gradient(120deg, var(--bg1) 0%, var(--bg2) 100%);
+      color:var(--text);
+      line-height: 1.5;
+    }
+    /* ให้เห็นกรอบโฟกัสชัดเจนเวลากดคีย์บอร์ด/แป้น Tab */
+    a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid #ff9800;
+      outline-offset: 3px;
+    }
+
+    /* ===== TOPBAR (เข้าชุดเดียวกับหน้าอื่น) ===== */
+    .topbar{
+      width:100%;
+      height:84px;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 32px;
+      box-sizing:border-box;
+      box-shadow:0 2px 14px rgba(80,150,200,0.09);
+      border-radius:0 0 18px 18px;
+      position:sticky;
+      top:0;
+      z-index:20;
+    }
+    .logo-group{ display:flex; align-items:center; gap:10px; }
+    .logo-img{ height:78px; width:auto; object-fit:contain; }
+    .topbar-actions{ display:flex; align-items:center; gap:16px; }
+    .home-btn,.profile-btn{
+      background: linear-gradient(90deg, #1aa9d6 0%, #17b8a3 100%);
+      color:#fff;
+      border:none;
+      border-radius:50%;
+      width:58px; height:58px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.7rem;
+      cursor:pointer;
+      box-shadow:0 1.5px 7px rgba(0,179,179,0.2);
+      transition: transform .12s ease, filter .16s ease;
+    }
+    .profile-btn{ background: linear-gradient(90deg, #0f8fc7 0%, #14a89a 100%); }
+    .home-btn:hover,.profile-btn:hover{ transform: scale(1.06); filter:saturate(1.1); }
+
+    /* ===== LAYOUT ===== */
+    .wrap{
+      max-width:980px;
+      margin:0 auto;
+      padding: 22px 22px 40px 22px; /* ซ้ายขวาห่างเท่ากัน */
+      box-sizing:border-box;
+    }
+
+    .header{
+      text-align:center;
+      margin: 16px 0 18px 0;
+      animation: fadeUp .45s ease both;
+    }
+    .header-title{
+      color:#0c4a72;
+      font-weight:800;
+      font-size: 2.2rem;
+      letter-spacing:.2px;
+      margin:0 0 8px 0;
+      text-shadow:0 2px 10px rgba(172,230,250,0.35);
+      font-family:'Kanit','Prompt',sans-serif;
+    }
+    .header-desc{
+      color:#0a4d78;
+      font-size:1.15rem;
+      font-weight: 600;
+      margin:0;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 20px;
+      align-items:start;
+    }
+
+    .card{
+      background:var(--card);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      border:1.6px solid #e2f4ff;
+      overflow:hidden;
+      animation: fadeUp .5s ease both;
+    }
+
+    .card-head{
+      padding: 20px 20px 16px 20px;
+      background: linear-gradient(120deg, #f5fdff 0%, #eefaff 100%);
+      border-bottom:1.6px solid #e2f4ff;
+      display:flex;
+      gap: 14px;
+      align-items:center;
+    }
+
+    .avatar{
+      width:64px; height:64px;
+      border-radius: 18px;
+      display:flex; align-items:center; justify-content:center;
+      color:#0f8fc7;
+      background: linear-gradient(135deg, #daf6fc 40%, #b7eaff 100%);
+      box-shadow: 0 6px 18px rgba(102,213,250,0.22);
+      flex:0 0 auto;
+    }
+    .avatar i{ font-size: 2rem; }
+
+    .card-head-title{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width:0;
+    }
+    .card-head-title .t1{
+      font-weight:800;
+      font-size:1.35rem;
+      color:#0a5a94;
+      margin:0;
+      font-family:'Kanit','Prompt',sans-serif;
+    }
+    .card-head-title .t2{
+      margin:0;
+      color:#0a4d78;
+      font-size:1.05rem;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 420px;
+    }
+
+    .card-body{
+      padding: 18px 20px 20px 20px;
+    }
+
+    .form{
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .field label{
+      display:block;
+      font-weight:800;
+      color:#0a5a94;
+      margin: 0 0 6px 2px;
+      font-size: 1.08rem;
+      letter-spacing:.2px;
+    }
+
+    .input, .textarea{
+      width:100%;
+      box-sizing:border-box;
+      border-radius: 14px;
+      border: 1.6px solid #b8eafd;
+      background: #eaf8fd;
+      color:#0a4d78;
+      padding: 14px 14px;
+      font-size: 1.12rem;
+      font-family: inherit;
+      outline:none;
+      transition: border .14s ease, background .14s ease, transform .08s ease;
+    }
+    .textarea{ resize:none; min-height: 90px; }
+
+    .input:focus, .textarea:focus{
+      border: 2px solid #4fc3ee;
+      background:#fff;
+    }
+
+    .input[readonly], .textarea[readonly]{
+      color:#3a5a6e;
+      background:#eef9ff;
+    }
+
+    .actions{
+      display:flex;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      border:none;
+      cursor:pointer;
+      border-radius: 18px;
+      padding: 15px 20px;
+      font-weight:800;
+      font-family:inherit;
+      font-size: 1.1rem;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap: 9px;
+      transition: transform .12s ease, filter .16s ease;
+      box-shadow: 0 8px 20px rgba(0,160,200,0.15);
+    }
+    .btn:active{ transform: scale(.98); }
+    .btn-primary{
+      color:#fff;
+      background: linear-gradient(90deg, var(--primary) 10%, var(--primary2) 100%);
+    }
+    .btn-soft{
+      color:#0a5a78;
+      background: linear-gradient(90deg, #dfe9ff 0%, #7fe8f6 100%);
+    }
+    .btn-danger{
+      color:#fff;
+      background: linear-gradient(90deg, #ff6a6a 10%, #fc2d2d 100%);
+    }
+    .btn:hover{ filter:saturate(1.08); transform: translateY(-1px) scale(1.02); }
+
+    .side-card{
+      padding: 18px 18px 16px 18px;
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 14px 14px;
+      border-radius: 18px;
+      border: 1.6px solid #d7f2ff;
+      background: linear-gradient(120deg, #f6fdff 0%, #eefaff 100%);
+      box-shadow: 0 8px 22px rgba(67,209,252,0.12);
+      margin-bottom: 12px;
+    }
+    .pill .left{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width:0;
+    }
+    .pill .dot{
+      width: 12px; height: 12px;
+      border-radius: 999px;
+      background: #18c7ff;
+      box-shadow: 0 0 0 4px rgba(24,199,255,0.16);
+    }
+    .pill .txt{
+      min-width:0;
+    }
+    .pill .txt .a{
+      margin:0;
+      font-weight:800;
+      color:#0a5a94;
+      font-size: 1.1rem;
+      line-height:1.3;
+    }
+    .pill .txt .b{
+      margin:3px 0 0 0;
+      font-size:1.02rem;
+      color:#0a4d78;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 260px;
+    }
+    .pill .right{
+      font-weight:800;
+      color:#0d7a37;
+      font-size:1.02rem;
+      white-space:nowrap;
+    }
+
+    .hint{
+      font-size:1.02rem;
+      color:#0a4d78;
+      line-height:1.6;
+      margin: 6px 4px 0 4px;
+    }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 18px;
+      background: rgba(14, 35, 52, 0.92);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      font-weight: 700;
+      font-size: 1.05rem;
+      opacity: 0;
+      pointer-events:none;
+      transition: opacity .18s ease, transform .18s ease;
+      z-index: 999;
+    }
+    .toast.show{
+      opacity: 1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    @keyframes fadeUp{
+      from{ opacity:0; transform: translateY(18px); }
+      to{ opacity:1; transform: translateY(0); }
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 950px){
+      .header-title{ font-size: 1.75rem; }
+      .header-desc{ font-size: 1.08rem; }
+      .logo-img{ height: 56px; }
+      .wrap{ padding: 16px 14px 34px 14px; }
+      .topbar{ padding: 0 14px; }
+      .grid{ grid-template-columns: 1fr; }
+      .card-head-title .t2{ max-width: 520px; }
+    }
+    @media (max-width: 600px){
+      .topbar{ height:66px; padding:0 3.5vw; }
+      .logo-img{ height: 56px; }
+      .home-btn,.profile-btn{ width:48px; height:48px; font-size:1.3rem; }
+
+      .wrap{ padding: 14px 3.5vw 30px 3.5vw; } /* ซ้ายขวาห่างเท่ากัน */
+      .header{ margin-top: 10px; }
+      .header-title{ font-size: 1.5rem; }
+      .header-desc{ font-size: 1rem; }
+
+      .row{ grid-template-columns: 1fr; }
+      .card-body{ padding: 16px; }
+      .card-head{ padding: 16px; }
+      .pill .txt .b{ max-width: 210px; }
+      .btn{ width:100%; font-size: 1.05rem; } /* ปุ่มเต็มบรรทัดดูสวยในมือถือ */
+      .actions{ gap: 10px; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo-group">
+      <img src="images/MedimateAI.png" alt="Medimate Logo" class="logo-img">
+    </div>
+    <div class="topbar-actions">
+      <button class="home-btn" onclick="window.location.href='main.html'" title="Home">
+        <i class="fa-solid fa-house"></i>
+      </button>
+      <button class="profile-btn" title="โปรไฟล์" onclick="window.location.href='profile.html'">
+        <i class="fa-solid fa-user"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="header">
+      <h1 class="header-title">ข้อมูลส่วนตัว (Profile)</h1>
+    </div>
+
+    <div class="grid">
+      <!-- Main profile card -->
+      <div class="card">
+        <div class="card-head">
+          <div class="avatar"><i class="fa-solid fa-user"></i></div>
+          <div class="card-head-title">
+            <p class="t1">โปรไฟล์ของฉัน</p>
+            <p class="t2" id="headEmail">กำลังโหลด...</p>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <form class="form" id="profileForm" autocomplete="off">
+            <div class="row">
+              <div class="field">
+                <label for="username">ชื่อผู้ใช้</label>
+                <input class="input" type="text" id="username" readonly>
+              </div>
+              <div class="field">
+                <label for="fullname">ชื่อ - นามสกุล</label>
+                <input class="input" type="text" id="fullname" readonly>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="phone">เบอร์โทรศัพท์</label>
+                <input class="input" type="text" id="phone" maxlength="15" readonly>
+              </div>
+              <div class="field">
+                <label for="email">อีเมล</label>
+                <input class="input" type="email" id="email" readonly>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="address">ที่อยู่</label>
+              <textarea class="textarea" id="address" rows="3" readonly></textarea>
+            </div>
+
+            <div class="actions">
+              <button type="button" class="btn btn-soft" id="editBtn" onclick="enableEdit()">
+                <i class="fa-solid fa-pen-to-square"></i> แก้ไข
+              </button>
+              <button type="button" class="btn btn-primary" id="saveBtn" onclick="saveProfile()" style="display:none;">
+                <i class="fa-solid fa-floppy-disk"></i> บันทึก
+              </button>
+              <button type="button" class="btn btn-danger" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Side info -->
+      <div class="card side-card">
+        <div class="pill">
+          <div class="left">
+            <div class="dot"></div>
+            <div class="txt">
+              <p class="a">สถานะ</p>
+              <p class="b" id="statusText">กำลังตรวจสอบผู้ใช้...</p>
+            </div>
+          </div>
+          <div class="right" id="statusBadge">●</div>
+        </div>
+
+        <div class="pill">
+          <div class="left">
+            <div class="dot"></div>
+            <div class="txt">
+              <p class="a">บัญชี</p>
+              <p class="b" id="uidText">-</p>
+            </div>
+          </div>
+          <div class="right" style="color:#0f8fc7;"><i class="fa-solid fa-shield-halved"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase CDN (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // ===== Firebase config (medimate-end) =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyAM5gSwcz9CWcZFcYW9VPOOckWouXj7Ehw",
+      authDomain: "medimate-end.firebaseapp.com",
+      projectId: "medimate-end",
+      storageBucket: "medimate-end.firebasestorage.app",
+      messagingSenderId: "411322830334",
+      appId: "1:411322830334:web:c08cdb63ea9fff1a9444af",
+      measurementId: "G-CZLM5M88BE"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // กันเด้ง/กันหลุด session ตอนเปลี่ยนหน้า
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+    let userRef = null;
+    let currentUser = null;
+
+    const el = (id) => document.getElementById(id);
+
+    function toast(msg){
+      const t = el("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(()=> t.classList.remove("show"), 1600);
+    }
+
+    function setStatus(ok, text){
+      el("statusText").textContent = text;
+      el("statusBadge").style.color = ok ? "#15b24b" : "#e84a4a";
+      el("statusBadge").textContent = ok ? "ONLINE" : "OFFLINE";
+    }
+
+    function lockInputs(locked){
+      ["fullname","phone","email","address"].forEach(id => el(id).readOnly = locked);
+    }
+
+    function enableEdit(){
+      lockInputs(false);
+      el("editBtn").style.display = "none";
+      el("saveBtn").style.display = "";
+      el("fullname").focus();
+      toast("โหมดแก้ไขข้อมูล");
+    }
+
+    async function saveProfile(){
+      if (!userRef) return;
+
+      const updated = {
+        username: (el("username").value || "").trim(),
+        fullname: (el("fullname").value || "").trim(),
+        phone: (el("phone").value || "").trim(),
+        email: (el("email").value || "").trim(),
+        address: (el("address").value || "").trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      // validate แบบเบา ๆ
+      if (!updated.fullname){
+        toast("กรุณากรอกชื่อ-นามสกุล");
+        el("fullname").focus();
+        return;
+      }
+      if (!updated.email || !updated.email.includes("@")){
+        toast("อีเมลไม่ถูกต้อง");
+        el("email").focus();
+        return;
+      }
+
+      try{
+        await userRef.set(updated, { merge: true }); // ใช้ set merge กันกรณี doc ยังไม่มี
+        lockInputs(true);
+        el("editBtn").style.display = "";
+        el("saveBtn").style.display = "none";
+        el("headEmail").textContent = updated.email;
+        toast("บันทึกสำเร็จ");
+      }catch(err){
+        toast("บันทึกไม่สำเร็จ");
+        alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message);
+      }
+    }
+
+    function logout(){
+      auth.signOut().then(()=>{
+        window.location.href = "login.html";
+      });
+    }
+
+    // ===== Load user + Firestore =====
+    auth.onAuthStateChanged(async (user)=>{
+      if (!user){
+        setStatus(false, "ยังไม่ได้เข้าสู่ระบบ");
+        // หน่วงนิดนึงให้เห็น status แล้วค่อยเด้ง
+        setTimeout(()=> window.location.href = "login.html", 250);
+        return;
+      }
+
+      currentUser = user;
+      setStatus(true, "เข้าสู่ระบบแล้ว");
+      el("uidText").textContent = user.uid;
+      el("headEmail").textContent = user.email || "ไม่มีอีเมล";
+
+      userRef = db.collection("users").doc(user.uid);
+
+      try{
+        const snap = await userRef.get();
+        let data = snap.exists ? (snap.data() || {}) : {};
+
+        // ถ้าไม่มี doc สร้างให้ทันที
+        if (!snap.exists){
+          await userRef.set({
+            email: user.email || "",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge:true });
+          const snap2 = await userRef.get();
+          data = snap2.exists ? (snap2.data() || {}) : data;
+        }
+
+        // เติมค่าลงฟอร์ม
+        el("username").value = data.username || "";
+        el("fullname").value = data.fullname || "";
+        el("phone").value = data.phone || "";
+        el("email").value = data.email || (user.email || "");
+        el("address").value = data.address || "";
+
+        lockInputs(true);
+      }catch(err){
+        alert("โหลดข้อมูลไม่สำเร็จ: " + err.message);
+      }
+    });
+
+    // expose for inline onclick
+    window.enableEdit = enableEdit;
+    window.saveProfile = saveProfile;
+    window.logout = logout;
+  </script>
+</body>
+</html>

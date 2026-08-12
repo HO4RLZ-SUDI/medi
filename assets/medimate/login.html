@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medimate AI - Login</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+
+  <!-- Firebase CDN (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      font-family: 'Prompt', sans-serif;
+      background: linear-gradient(135deg, #c2e9fb 0%, #81c7f5 100%);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    /* ===== Card (กว้างเท่าหน้าแรก) ===== */
+    .login-box {
+      background: rgba(255,255,255,0.92);
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.75);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.10);
+
+      width: 100%;
+      max-width: 330px;          /* ✅ เท่าหน้าแรก */
+      margin: 20px auto 70px auto;
+      padding: 30px 22px 26px 22px;
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: fadein .8s ease both;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(18px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ===== Avatar ===== */
+    .avatar {
+      width: 72px;
+      height: 72px;
+      margin-top: -16px;
+      margin-bottom: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #b1e3fc 0%, #ffffff 90%);
+      box-shadow: 0 4px 14px rgba(83,183,244,0.13);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1ba6e5;
+      font-size: 2rem;
+    }
+
+    /* ===== Title ===== */
+    .login-title {
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: #208bcf;
+      margin-bottom: 16px;
+      text-align: center;
+      letter-spacing: 0.01em;
+    }
+
+    /* ===== Form ===== */
+    form {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .input-label {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #205375;
+      margin-left: 6px;
+      margin-bottom: 4px;
+    }
+
+    .login-input {
+      width: 100%;
+      padding: 12px 18px;
+      font-size: 1.05rem;
+      border-radius: 22px;
+      border: 2px solid #e0e9f2;
+      background: #eaf7fd;
+      color: #16445e;
+      font-family: inherit;
+      outline: none;
+      transition: border .18s, background .18s;
+    }
+
+    .login-input:focus {
+      border-color: #38b6ff;
+      background: #ffffff;
+    }
+
+    /* ===== Button ===== */
+    .login-btn {
+      margin-top: 6px;
+      padding: 12px 0;
+      border: none;
+      border-radius: 30px;
+      background: linear-gradient(90deg, #00b4d8, #0077b6);
+      color: #ffffff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(81,192,228,0.35);
+      transition: transform .15s, box-shadow .15s, background .2s;
+    }
+
+    .login-btn:hover,
+    .login-btn:focus {
+      background: linear-gradient(90deg, #0096c7, #023e8a);
+      transform: translateY(-1px) scale(1.03);
+      box-shadow: 0 8px 24px rgba(96,180,228,0.45);
+    }
+
+    /* ===== Error ===== */
+    .error-msg {
+      display: none;
+      min-height: 20px;
+      margin-top: 8px;
+      text-align: center;
+      font-size: 0.98rem;
+      color: #e14a55;
+    }
+
+    /* ===== Register link ===== */
+    .register-link {
+      margin-top: 18px;
+      font-size: 0.98rem;
+      color: #16699c;
+      text-align: center;
+    }
+
+    .register-link a {
+      color: #1d9bd1;
+      font-weight: 700;
+      text-decoration: none;
+      margin-left: 4px;
+    }
+
+    .register-link a:hover {
+      text-decoration: underline;
+    }
+
+    /* ===== Footer (เหมือนหน้าแรก) ===== */
+    footer {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100vw;
+      text-align: center;
+      font-size: 0.9rem;
+      background: #328ec7;
+      color: #e8f7ff;
+      padding: 5px 0 2px 0;
+      letter-spacing: 0.01em;
+      box-shadow: 0 -2px 18px #8be7fc33;
+    }
+
+    /* ===== Mobile ===== */
+    @media (max-width: 520px) {
+      .login-box {
+        max-width: 330px;
+        margin: 10vw auto 80px auto;
+        padding: 28px 7vw 18px 7vw;
+      }
+      .avatar { width: 60px; height: 60px; font-size: 1.6rem; }
+      .login-title { font-size: 1.2rem; }
+      footer { font-size: 0.82rem; padding: 3px 0 1px 0; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="login-box">
+    <div class="avatar">
+      <i class="fa-solid fa-user"></i>
+    </div>
+
+    <div class="login-title">เข้าสู่ระบบ</div>
+
+    <form id="loginForm" autocomplete="off">
+      <div>
+        <label class="input-label" for="email">Email</label>
+        <input class="login-input" type="email" id="email" required>
+      </div>
+
+      <div>
+        <label class="input-label" for="password">Password</label>
+        <input class="login-input" type="password" id="password" required>
+      </div>
+
+      <button type="submit" class="login-btn">
+        <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
+      </button>
+
+      <div id="errorMsg" class="error-msg"></div>
+    </form>
+
+    <div class="register-link">
+      ยังไม่มีบัญชี? <a href="register.html">สมัครสมาชิก</a>
+    </div>
+  </div>
+
+  <footer>
+    © 2025 Medimate AI — ดูแลด้วยใจ ใส่ใจด้วยเทคโนโลยี
+  </footer>
+
+  <script>
+    /* ===== Firebase (medimate-end) ===== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAM5gSwcz9CWcZFcYW9VPOOckWouXj7Ehw",
+      authDomain: "medimate-end.firebaseapp.com",
+      projectId: "medimate-end",
+      storageBucket: "medimate-end.firebasestorage.app",
+      messagingSenderId: "411322830334",
+      appId: "1:411322830334:web:c08cdb63ea9fff1a9444af",
+      measurementId: "G-CZLM5M88BE"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    const form = document.getElementById("loginForm");
+    const errorMsg = document.getElementById("errorMsg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorMsg.style.display = "none";
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = "main.html";
+      } catch (err) {
+        let msg = "เข้าสู่ระบบไม่สำเร็จ";
+        if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+          msg = "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
+        } else if (err.code === "auth/invalid-email") {
+          msg = "อีเมลไม่ถูกต้อง";
+        } else if (err.code === "auth/too-many-requests") {
+          msg = "บัญชีถูกล็อกชั่วคราว กรุณาลองใหม่ภายหลัง";
+        }
+        errorMsg.textContent = msg;
+        errorMsg.style.display = "block";
+      }
+    });
+  </script>
+
+</body>
+</html>

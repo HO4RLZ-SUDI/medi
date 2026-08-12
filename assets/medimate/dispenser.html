@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ตู้จ่ายยา — Medimate AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+  <link rel="icon" href="images/MedimateLoGo.png" type="image/png">
+
+  <!-- Firebase: ใช้ดึงชื่อยาที่ตั้งไว้ในหน้า Drug Information (ถ้าต่อเน็ตไม่ได้ก็ข้ามไป) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    html { font-size: 19px; }
+    html, body {
+      height: 100%; margin: 0; padding: 0;
+      font-family: 'Prompt', sans-serif;
+      background: linear-gradient(135deg, #7cc3f3 0%, #a2d5f7 100%);
+      min-height: 100vh; line-height: 1.5;
+    }
+    a:focus-visible, button:focus-visible, [tabindex]:focus-visible, select:focus-visible {
+      outline: 3px solid #ff9800; outline-offset: 3px;
+    }
+
+    .topbar {
+      width: 100%; height: 84px; background: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; box-sizing: border-box;
+      box-shadow: 0 2px 14px rgba(80,150,200,0.09);
+      border-radius: 0 0 18px 18px; position: sticky; top: 0; z-index: 20;
+    }
+    .logo-group { display: flex; align-items: center; gap: 10px; }
+    .logo-img { height: 78px; width: auto; object-fit: contain; }
+    .topbar-actions { display: flex; align-items: center; gap: 16px; }
+    .home-btn, .profile-btn {
+      background: linear-gradient(90deg, #1aa9d6 0%, #17b8a3 100%);
+      color: #fff; border: none; border-radius: 50%;
+      width: 58px; height: 58px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem; cursor: pointer;
+      box-shadow: 0 1.5px 7px #00b3b333;
+      transition: background 0.16s, transform 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .profile-btn { background: linear-gradient(90deg, #0f8fc7 0%, #14a89a 100%); }
+    .home-btn:hover, .profile-btn:hover { background: #0d6f97; transform: scale(1.06); }
+
+    .wrap { max-width: 1150px; margin: 0 auto; padding: 26px 18px 46px; }
+
+    .head-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+    }
+    .page-title { font-size: 1.75rem; color: #0c4a72; font-weight: 700; letter-spacing: .3px; }
+    .page-desc { font-size: 1.02rem; color: #0a4d78; opacity: .82; }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 14px; border-radius: 999px;
+      font-weight: 800; font-size: .95rem;
+      border: 1px solid rgba(140,220,255,.55);
+      background: rgba(233,250,255,.9); color: #0a5a94; white-space: nowrap;
+    }
+    .pill.ok   { background: rgba(24,190,140,.14); border-color: rgba(24,190,140,.34); color: #0b6c51; }
+    .pill.warn { background: rgba(255,176,32,.16); border-color: rgba(255,176,32,.38); color: #7a4b00; }
+    .pill.err  { background: rgba(254,71,71,.12); border-color: rgba(254,71,71,.28); color: #c9183d; }
+
+    .card {
+      background: rgba(255,255,255,0.97);
+      border-radius: 22px;
+      box-shadow: 0 8px 26px #21b8e125, 0 2px 9px #b0eafd24;
+      border: 2.5px solid #f6fcff;
+      padding: 22px;
+      margin-bottom: 22px;
+    }
+    .card > h2 {
+      margin: 0 0 16px; font-size: 1.25rem; color: #0a5a94; font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card > h2 i { color: #128acf; }
+
+    .tube-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .tube {
+      background: #f7fdff; border: 2px solid #e2f4fd; border-radius: 20px;
+      padding: 18px 16px; display: flex; flex-direction: column; align-items: center;
+      transition: border .15s, box-shadow .15s, transform .15s;
+    }
+    .tube.busy { border-color: #4ec5e9; box-shadow: 0 10px 24px #21b8e133; }
+    .tube.empty { border-color: #ffd08a; background: #fffaf1; }
+    .tube img { width: 88px; height: 88px; object-fit: contain; margin-bottom: 8px; }
+    .tube-label { font-size: 1.05rem; font-weight: 700; color: #0a5a94; }
+    .tube-meal { font-size: .92rem; color: #4c7c9d; margin-bottom: 6px; }
+    .tube-drug {
+      font-size: 1.12rem; font-weight: 700; color: #0c4a72;
+      text-align: center; min-height: 1.6em; margin-bottom: 2px;
+      word-break: break-word;
+    }
+    .tube-detail { font-size: .88rem; color: #62889f; text-align: center; min-height: 1.2em; margin-bottom: 10px; }
+    .tube-count { font-size: 2.1rem; font-weight: 700; color: #0f8fc7; line-height: 1.1; }
+    .tube-count small { font-size: .95rem; color: #62889f; font-weight: 600; }
+    .tube-actions { display: flex; gap: 8px; margin-top: 14px; width: 100%; }
+
+    .btn {
+      flex: 1; font-family: inherit; font-size: 1rem; font-weight: 700;
+      padding: 11px 12px; border: none; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(90deg, #00b4d8, #0077b6); color: #fff;
+      box-shadow: 0 2px 12px #51c0e448;
+      transition: background .2s, transform .14s, box-shadow .14s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover:not(:disabled) {
+      background: linear-gradient(90deg, #0096c7, #023e8a);
+      transform: translateY(-1px) scale(1.02);
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.gray { background: #eaf6fc; color: #0a5a94; border: 1.5px solid #cfe9f6; box-shadow: none; }
+    .btn.gray:hover:not(:disabled) { background: #dcf0fa; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .kpi {
+      background: #f6fdff; border: 1.5px solid #d8eef9; border-radius: 18px;
+      padding: 16px; text-align: center;
+    }
+    .kpi-label { font-size: .95rem; color: #4c7c9d; margin-bottom: 4px; }
+    .kpi-value { font-size: 1.7rem; font-weight: 800; color: #0a5a94; }
+
+    .cam-box {
+      position: relative; width: 100%; aspect-ratio: 4 / 3;
+      max-height: 420px; border-radius: 18px; overflow: hidden;
+      background: #0d1a22; border: 1.5px solid #d8eef9;
+    }
+    .cam-box iframe { width: 100%; height: 100%; border: 0; display: block; }
+    .cam-hint {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #cfe9f6; font-size: 1rem; text-align: center; padding: 20px;
+    }
+
+    table.hist { width: 100%; border-collapse: separate; border-spacing: 0 8px; font-size: .98rem; }
+    table.hist th {
+      text-align: left; font-size: .92rem; color: #4c7c9d; font-weight: 700;
+      padding: 0 10px 4px;
+    }
+    table.hist td {
+      background: #f7fdff; padding: 11px 10px; color: #0c4a72;
+      border-top: 1.5px solid #e2f4fd; border-bottom: 1.5px solid #e2f4fd;
+    }
+    table.hist td:first-child { border-left: 1.5px solid #e2f4fd; border-radius: 14px 0 0 14px; }
+    table.hist td:last-child  { border-right: 1.5px solid #e2f4fd; border-radius: 0 14px 14px 0; }
+    .hist-empty { text-align: center; color: #62889f; padding: 22px 0; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+      background: #0a5a94; color: #fff; padding: 13px 22px; border-radius: 16px;
+      font-weight: 700; box-shadow: 0 10px 28px rgba(0,0,0,.22);
+      opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
+      z-index: 50; max-width: 90vw; text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+    .toast.err { background: #c9183d; }
+    .toast.ok  { background: #0b6c51; }
+
+    .foot-links { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+    .foot-links a {
+      color: #0a5a94; text-decoration: none; font-weight: 700; font-size: .95rem;
+      background: rgba(255,255,255,.75); padding: 9px 16px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.9);
+    }
+    .foot-links a:hover { background: #fff; }
+
+    @media (max-width: 950px) {
+      .tube-grid { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 650px) {
+      .topbar { padding: 0 3.5vw; height: 66px; }
+      .logo-img { height: 56px; }
+      .home-btn, .profile-btn { width: 48px; height: 48px; font-size: 1.3rem; }
+      .wrap { padding: 18px 3.5vw 40px; }
+      .page-title { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="logo-group">
+      <img src="images/MedimateAI.png" alt="Medimate Logo" class="logo-img">
+    </div>
+    <div class="topbar-actions">
+      <button class="home-btn" onclick="window.location.href='main.html'" title="Home">
+        <i class="fa-solid fa-house"></i>
+      </button>
+      <button class="profile-btn" onclick="window.location.href='profile.html'" title="Profile">
+        <i class="fa-solid fa-user"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="head-row">
+      <div>
+        <div class="page-title">ตู้จ่ายยาอัตโนมัติ</div>
+        <div class="page-desc">สั่งจ่ายยา เติมยา และดูสถานะหลอดยาทั้ง 3 หลอดแบบเรียลไทม์</div>
+      </div>
+      <div id="connPill" class="pill warn"><i class="fa-solid fa-plug"></i> กำลังเชื่อมต่อ…</div>
+    </div>
+
+    <!-- ---------- หลอดยา ---------- -->
+    <div class="card">
+      <h2><i class="fa-solid fa-prescription-bottle-medical"></i> หลอดยา</h2>
+      <div class="tube-grid" id="tubeGrid"></div>
+    </div>
+
+    <!-- ---------- เซนเซอร์ ---------- -->
+    <div class="card">
+      <h2><i class="fa-solid fa-gauge-high"></i> สถานะเครื่อง</h2>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">อุณหภูมิ</div>
+          <div class="kpi-value" id="kpiTemp">–</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">ความชื้น</div>
+          <div class="kpi-value" id="kpiHum">–</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">ตรวจพบผู้ใช้</div>
+          <div class="kpi-value" id="kpiFace">–</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- กล้อง ---------- -->
+    <div class="card">
+      <h2><i class="fa-solid fa-video"></i> กล้องจดจำใบหน้า</h2>
+      <div class="cam-box" id="camBox">
+        <div class="cam-hint" id="camHint">กำลังตรวจสอบกล้อง…</div>
+      </div>
+    </div>
+
+    <!-- ---------- ประวัติล่าสุด ---------- -->
+    <div class="card">
+      <h2><i class="fa-solid fa-clock-rotate-left"></i> การจ่ายยาล่าสุด</h2>
+      <table class="hist">
+        <thead>
+          <tr><th>เวลา</th><th>ชื่อยา</th><th>หลอด</th><th>จำนวน</th><th>หมายเหตุ</th></tr>
+        </thead>
+        <tbody id="histBody">
+          <tr><td colspan="5" class="hist-empty">ยังไม่มีประวัติ</td></tr>
+        </tbody>
+      </table>
+      <div class="foot-links">
+        <a href="Dispensary History.html"><i class="fa-solid fa-file-medical"></i> ดูประวัติทั้งหมด</a>
+        <a href="Drug Information.html"><i class="fa-solid fa-pills"></i> ตั้งค่าชื่อยาในหลอด</a>
+        <a href="/index.html" target="_blank"><i class="fa-solid fa-sliders"></i> หน้าตั้งค่าฮาร์ดแวร์ขั้นสูง</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../libs/socket.io.min.js"></script>
+  <script src="../libs/arduino.js"></script>
+  <script src="medimate-hw.js"></script>
+  <script>
+  (function () {
+    "use strict";
+
+    var HW = window.MedimateHW;
+    var TUBE_IMG = ["images/Medication Tube 1.png",
+                    "images/Medication Tube 2.png",
+                    "images/Medication Tube 3.png"];
+
+    var tubes = [{ name: "", detail: "" }, { name: "", detail: "" }, { name: "", detail: "" }];
+    var pills = [null, null, null];
+    var busy  = [false, false, false];
+
+    var $ = function (id) { return document.getElementById(id); };
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+      });
+    }
+
+    var toastTimer = null;
+    function toast(msg, kind) {
+      var t = $("toast");
+      t.textContent = msg;
+      t.className = "toast show" + (kind ? " " + kind : "");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { t.className = "toast"; }, 3200);
+    }
+
+    /* ---------- หลอดยา ---------- */
+    function renderTubes() {
+      var host = $("tubeGrid");
+      host.innerHTML = "";
+
+      for (var i = 0; i < 3; i++) {
+        var n = pills[i];
+        var known = (typeof n === "number");
+        var el = document.createElement("div");
+        el.className = "tube" + (busy[i] ? " busy" : "") + (known && n <= 0 ? " empty" : "");
+        el.innerHTML =
+          '<img src="' + TUBE_IMG[i] + '" alt="' + esc(HW.TUBE_LABELS[i]) + '">' +
+          '<div class="tube-label">' + esc(HW.TUBE_LABELS[i]) + '</div>' +
+          '<div class="tube-meal">' + esc(HW.MEAL_LABELS[i]) + ' · ' + esc(HW.WINDOWS[i]) + '</div>' +
+          '<div class="tube-drug">' + esc(tubes[i].name || "ยังไม่ได้ตั้งชื่อยา") + '</div>' +
+          '<div class="tube-detail">' + esc(tubes[i].detail || "") + '</div>' +
+          '<div class="tube-count">' + (known ? n : "–") + ' <small>เม็ด</small></div>' +
+          '<div class="tube-actions">' +
+            '<button class="btn" data-act="dispense" data-idx="' + i + '"' +
+              (busy[i] || (known && n <= 0) ? " disabled" : "") + '>' +
+              '<i class="fa-solid fa-hand-holding-medical"></i> จ่ายยา</button>' +
+            '<button class="btn gray" data-act="refill" data-idx="' + i + '"' +
+              (busy[i] ? " disabled" : "") + '>' +
+              '<i class="fa-solid fa-plus"></i> เติม</button>' +
+          '</div>';
+        host.appendChild(el);
+      }
+    }
+
+    document.addEventListener("click", function (e) {
+      var btn = e.target.closest ? e.target.closest("button[data-act]") : null;
+      if (!btn) return;
+      var idx = parseInt(btn.getAttribute("data-idx"), 10);
+      var act = btn.getAttribute("data-act");
+
+      if (!HW.isAvailable()) { toast("ยังไม่ได้เชื่อมต่อกับตู้จ่ายยา", "err"); return; }
+
+      if (act === "dispense") {
+        busy[idx] = true;
+        renderTubes();
+        HW.dispense(idx, "สั่งจากหน้าตู้จ่ายยา");
+        toast("กำลังจ่าย" + HW.MEAL_LABELS[idx] + " — " + (tubes[idx].name || HW.TUBE_LABELS[idx]));
+        setTimeout(function () { busy[idx] = false; renderTubes(); }, 4000);
+      } else if (act === "refill") {
+        var cur = (typeof pills[idx] === "number") ? pills[idx] : 0;
+        var ans = window.prompt("เติม" + HW.TUBE_LABELS[idx] + " ให้เป็นกี่เม็ด?", String(Math.max(cur, 5)));
+        if (ans === null) return;
+        var n = parseInt(ans, 10);
+        if (isNaN(n) || n < 0) { toast("จำนวนไม่ถูกต้อง", "err"); return; }
+        HW.refill(idx, n);
+      }
+    });
+
+    /* ---------- เซนเซอร์ ---------- */
+    function renderSensors(s) {
+      $("kpiTemp").textContent = (s.temperature == null) ? "–" : (Number(s.temperature).toFixed(1) + " °C");
+      $("kpiHum").textContent  = (s.humidity == null)    ? "–" : (Number(s.humidity).toFixed(0) + " %");
+      setFace(!!s.face);
+    }
+
+    function setFace(on) {
+      $("kpiFace").textContent = on ? "พบผู้ใช้" : "ไม่พบ";
+      $("kpiFace").style.color = on ? "#0b6c51" : "#0a5a94";
+    }
+
+    /* ---------- ประวัติ ---------- */
+    function renderHistory(rows) {
+      var body = $("histBody");
+      rows = (rows || []).filter(function (r) { return r.kind === "dispense"; }).slice(0, 8);
+
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" class="hist-empty">ยังไม่มีประวัติ</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (r) {
+        return "<tr>" +
+          "<td>" + esc(r.time) + "</td>" +
+          "<td>" + esc(r.drug) + "</td>" +
+          "<td>" + esc(r.tube) + "</td>" +
+          '<td>' + esc(r.amount) + " เม็ด</td>" +
+          "<td>" + esc(r.note) + "</td>" +
+        "</tr>";
+      }).join("");
+    }
+
+    /* ---------- กล้อง ---------- */
+    function initCamera() {
+      HW.camera().then(function (info) {
+        if (!info.ok) {
+          $("camHint").textContent = info.error || "กล้องยังไม่พร้อมใช้งาน";
+          return;
+        }
+        var frame = document.createElement("iframe");
+        frame.src = HW.cameraEmbedUrl(info);
+        frame.allow = "autoplay";
+        $("camBox").innerHTML = "";
+        $("camBox").appendChild(frame);
+      }).catch(function () {
+        $("camHint").textContent = "เชื่อมต่อกล้องไม่ได้ (เปิดหน้านี้จากบอร์ดหรือยัง?)";
+      });
+    }
+
+    /* ---------- สถานะการเชื่อมต่อ ---------- */
+    function setConn(state, text) {
+      var el = $("connPill");
+      el.className = "pill " + state;
+      el.innerHTML = '<i class="fa-solid fa-plug"></i> ' + esc(text);
+    }
+
+    /* ---------- ดึงข้อมูลรอบแรก + รีเฟรช ---------- */
+    function refresh() {
+      HW.status().then(function (s) {
+        if (Array.isArray(s.tubes)) {
+          for (var i = 0; i < 3; i++) {
+            if (!tubes[i].name && s.tubes[i]) {
+              tubes[i].name = s.tubes[i].name || "";
+              tubes[i].detail = s.tubes[i].detail || "";
+            }
+          }
+        }
+        if (Array.isArray(s.pills)) pills = s.pills;
+        renderTubes();
+        renderSensors(s);
+        renderHistory(s.history);
+        setConn(s.online ? "ok" : "warn",
+                s.online ? "เชื่อมต่อตู้จ่ายยาแล้ว" : "ต่อเว็บได้ แต่ยังคุยกับบอร์ดไม่ได้");
+      }).catch(function () {
+        setConn("err", "ยังไม่ได้เชื่อมต่อตู้จ่ายยา");
+      });
+    }
+
+    /* ---------- ซิงก์ชื่อยาจาก Firestore ---------- */
+    function syncFromFirestore() {
+      if (typeof firebase === "undefined") return;
+      try {
+        firebase.initializeApp({
+          apiKey: "AIzaSyAM5gSwcz9CWcZFcYW9VPOOckWouXj7Ehw",
+          authDomain: "medimate-end.firebaseapp.com",
+          projectId: "medimate-end",
+          storageBucket: "medimate-end.firebasestorage.app",
+          messagingSenderId: "411322830334",
+          appId: "1:411322830334:web:c08cdb63ea9fff1a9444af",
+          measurementId: "G-CZLM5M88BE"
+        });
+      } catch (e) { /* init ซ้ำได้ ไม่เป็นไร */ }
+
+      firebase.auth().onAuthStateChanged(function (user) {
+        if (!user) return;
+        var db = firebase.firestore();
+        var jobs = [0, 1, 2].map(function (i) {
+          return db.collection("users").doc(user.uid)
+                   .collection("tubes").doc("tube" + (i + 1)).get()
+                   .then(function (doc) {
+                     var drugs = (doc.exists && doc.data().drugs) || [];
+                     var first = drugs[0] || {};
+                     return {
+                       name: first.name || "",
+                       detail: first.detail || "",
+                       count: Number(first.count || 0)
+                     };
+                   })
+                   .catch(function () { return { name: "", detail: "", count: 0 }; });
+        });
+
+        Promise.all(jobs).then(function (list) {
+          var any = list.some(function (t) { return t.name; });
+          if (!any) return;
+          tubes = list;
+          renderTubes();
+          HW.syncTubes(list);          // เก็บไว้ที่บอร์ดด้วย ประวัติจะได้มีชื่อยา
+        });
+      });
+    }
+
+    /* ---------- เริ่มทำงาน ---------- */
+    HW.onConnect(function () { setConn("ok", "เชื่อมต่อตู้จ่ายยาแล้ว"); refresh(); });
+    HW.onDisconnect(function () { setConn("err", "การเชื่อมต่อหลุด"); });
+
+    HW.onPills(function (p) { pills = p; busy = [false, false, false]; renderTubes(); });
+    HW.onFace(setFace);
+    HW.onHistory(renderHistory);
+    HW.onTubes(function (t) {
+      if (!Array.isArray(t)) return;
+      for (var i = 0; i < 3; i++) if (t[i] && t[i].name) tubes[i] = t[i];
+      renderTubes();
+    });
+    HW.onDispense(function (d) {
+      toast(d.message || "", d.ok ? "ok" : "err");
+      busy = [false, false, false];
+      renderTubes();
+    });
+
+    renderTubes();
+    refresh();
+    initCamera();
+    syncFromFirestore();
+    setInterval(refresh, 10000);      // เผื่อ socket หลุด
+  })();
+  </script>
+</body>
+</html>

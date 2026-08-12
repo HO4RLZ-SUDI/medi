@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medimate AI - Main</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+
+  <style>
+    html {
+      /* เพิ่มขนาดตัวอักษรพื้นฐานทั้งเว็บ (จาก 16px เป็น 19px) เพื่อให้อ่านง่ายขึ้นสำหรับผู้สูงอายุ */
+      font-size: 19px;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Prompt', sans-serif;
+      background: linear-gradient(135deg, #7cc3f3 0%, #a2d5f7 100%);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    /* ให้เห็นกรอบโฟกัสชัดเจนเวลากดคีย์บอร์ด/แป้น Tab (ช่วยผู้ใช้ที่ใช้คีย์บอร์ดหรือ switch) */
+    a:focus-visible, button:focus-visible, [tabindex]:focus-visible, select:focus-visible {
+      outline: 3px solid #ff9800;
+      outline-offset: 3px;
+    }
+
+    .topbar {
+      width: 100%;
+      height: 84px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      box-sizing: border-box;
+      box-shadow: 0 2px 14px rgba(80,150,200,0.09);
+      border-radius: 0 0 18px 18px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .logo-group { display: flex; align-items: center; gap: 10px; }
+    .logo-img { height: 78px; width: auto; object-fit: contain; }
+    .topbar-actions { display: flex; align-items: center; gap: 16px; }
+    .home-btn, .profile-btn {
+      background: linear-gradient(90deg, #1aa9d6 0%, #17b8a3 100%);
+      color: #fff; border: none; border-radius: 50%;
+      width: 58px; height: 58px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem; cursor: pointer;
+      box-shadow: 0 1.5px 7px #00b3b333;
+      transition: background 0.16s, transform 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .profile-btn { background: linear-gradient(90deg, #0f8fc7 0%, #14a89a 100%);}
+    .home-btn:hover, .profile-btn:hover { background: #0d6f97; transform: scale(1.06);}
+
+    .main-content {
+      max-width: 1280px; margin: 0 auto;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 32px 18px 0 18px;
+    }
+
+    /* ===== แถบสถานะตู้จ่ายยา ===== */
+    .hw-strip {
+      width: 100%; max-width: 1050px; margin: 0 0 26px 0;
+      background: rgba(255,255,255,0.97);
+      border: 2.5px solid #f6fcff; border-radius: 22px;
+      box-shadow: 0 8px 26px #21b8e125, 0 2px 9px #b0eafd24;
+      padding: 18px 20px; cursor: pointer;
+      transition: box-shadow .18s, transform .14s, border .14s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .hw-strip:hover { transform: translateY(-3px); border-color: #4ec5e9; }
+    .hw-strip-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+      font-size: 1.15rem; font-weight: 700; color: #0a5a94;
+    }
+    .hw-strip-head i { color: #128acf; margin-right: 6px; }
+    .hw-conn {
+      font-size: .88rem; font-weight: 800; padding: 6px 13px; border-radius: 999px;
+      background: rgba(255,176,32,.16); border: 1px solid rgba(255,176,32,.38); color: #7a4b00;
+    }
+    .hw-conn.ok  { background: rgba(24,190,140,.14); border-color: rgba(24,190,140,.34); color: #0b6c51; }
+    .hw-conn.err { background: rgba(254,71,71,.12); border-color: rgba(254,71,71,.28); color: #c9183d; }
+    .hw-tubes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .hw-tube {
+      background: #f7fdff; border: 1.5px solid #e2f4fd; border-radius: 16px;
+      padding: 12px 10px; text-align: center;
+    }
+    .hw-tube.empty { background: #fffaf1; border-color: #ffd08a; }
+    .hw-tube-name { font-size: .95rem; color: #4c7c9d; margin-bottom: 2px; }
+    .hw-tube-count { font-size: 1.7rem; font-weight: 800; color: #0f8fc7; line-height: 1.15; }
+    .hw-tube-count small { font-size: .82rem; color: #62889f; font-weight: 600; }
+    @media (max-width: 650px) {
+      .hw-tubes { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .hw-tube-count { font-size: 1.35rem; }
+      .hw-tube-name { font-size: .82rem; }
+    }
+
+    .feature-group-title {
+      font-size: 1.75rem;
+      color: #0c4a72;
+      font-weight: 700;
+      margin: 0 0 24px 0;
+      letter-spacing: 0.3px;
+      text-align: center;
+      width: 100%;
+    }
+
+    .feature-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #0a5a94;
+      margin-bottom: 6px;
+      letter-spacing: 0.12px;
+      text-align: center;
+    }
+    .feature-desc {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #0a4d78;
+      text-align: center;
+      letter-spacing: 0.08px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+      width: 100%;
+      max-width: 1050px;
+      margin-bottom: 24px;
+    }
+
+    .feature-card {
+      background: rgba(255,255,255,0.97);
+      border-radius: 22px;
+      box-shadow: 0 8px 26px #21b8e125, 0 2px 9px #b0eafd24;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center;
+      padding: 34px 14px 22px 14px;
+      cursor: pointer; border: 2.5px solid #f6fcff;
+      min-height: 190px;
+      transition: box-shadow 0.18s, transform 0.14s, border 0.14s, background 0.14s;
+      position: relative;
+      animation: fade-in 0.8s cubic-bezier(.44,1.8,.6,1) both;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .feature-card:hover {
+      box-shadow: 0 18px 36px #21b8e155, 0 10px 22px #9eeeff38;
+      transform: translateY(-4px) scale(1.04);
+      border: 2.5px solid #4ec5e9;
+      background: #eaf8fd;
+    }
+    .feature-card:active {
+      transform: translateY(-1px) scale(0.985);
+      box-shadow: 0 10px 22px rgba(33,184,225,0.22);
+    }
+
+    .feature-icon {
+      font-size: 3rem; margin-bottom: 16px; color: #128acf;
+      text-shadow: 0 2px 12px #87d6f250; animation: bounce 2.5s infinite;
+    }
+    @keyframes bounce {
+      0%,100% { transform: translateY(0);}
+      40% { transform: translateY(-9px);}
+      60% { transform: translateY(-5px);}
+    }
+    @keyframes fade-in {
+      0% { opacity: 0; transform: translateY(26px) scale(.94);}
+      100% { opacity: 1; transform: translateY(0) scale(1);}
+    }
+
+    .sos-btn {
+      background: linear-gradient(135deg, #fe4747 0%, #f94770 100%);
+      border: 2.5px solid #fe5353 !important;
+      box-shadow: 0 8px 28px #fe474777;
+      color: #fff !important;
+      animation: sos-shake 2.5s infinite;
+    }
+    .sos-btn .feature-icon,
+    .sos-btn .feature-title,
+    .sos-btn .feature-desc {
+      color: #fff !important; text-shadow: 0 2px 10px #b3000046;
+    }
+    .sos-btn:hover {
+      background: linear-gradient(135deg, #ff2121 0%, #e6364b 100%);
+      transform: scale(1.07);
+      box-shadow: 0 12px 32px #ff161696;
+    }
+    @keyframes sos-shake {
+      0%, 100% { transform: translateY(0) scale(1);}
+      12% { transform: translateY(-3px) scale(1.05);}
+      15% { transform: translateY(2px) scale(1.01);}
+      20% { transform: translateY(-2px) scale(1.04);}
+      30% { transform: translateY(0);}
+    }
+
+    @media (max-width: 1000px) {
+      .feature-grid { grid-template-columns: repeat(2, 1fr);}
+      .feature-group-title { font-size: 1.55rem; }
+      .feature-title { font-size: 1.05rem; }
+      .feature-desc { font-size: 1.3rem; }
+    }
+
+    @media (max-width: 650px) {
+      .main-content { padding: 7vw 3.5vw 6vw 3.5vw; }
+      .topbar { padding: 0 3.5vw; height: 66px; }
+      .logo-img { height: 56px; }
+      .profile-btn, .home-btn {
+        width: 48px; height: 48px;
+        font-size: 1.25rem;
+      }
+      .feature-group-title { font-size: 1.4rem; margin-bottom: 16px; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+      .feature-card { border-radius: 20px; padding: 22px 10px 18px 10px; min-height: 160px; border-width: 2px; }
+      .feature-icon { font-size: 2.35rem; margin-bottom: 12px; animation: none; }
+      .feature-title { font-size: 0.95rem; margin-bottom: 5px; }
+      .feature-desc { font-size: 1.15rem; font-weight: 700; line-height: 1.35; }
+      .feature-card:active { transform: translateY(0) scale(0.985); box-shadow: 0 10px 22px rgba(33,184,225,0.18); background: #f2fbff; }
+    }
+    @media (max-width: 420px) {
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .feature-card { min-height: 150px; }
+    }
+
+    .ripple {
+      position: absolute;
+      border-radius: 999px;
+      transform: scale(0);
+      animation: ripple 520ms ease-out;
+      background: rgba(0, 150, 199, 0.22);
+      pointer-events: none;
+    }
+    @keyframes ripple {
+      to { transform: scale(3.2); opacity: 0; }
+    }
+
+    /* ==========================================================
+       ✅ เพิ่มเฉพาะ "ดีไซน์" ส่วนตรวจจับการล้ม ให้เข้ากับหน้า main
+       ========================================================== */
+    .fd-wrap{
+      width:100%;
+      max-width:1050px;
+      margin: 10px auto 44px auto;
+    }
+    .fd-panel{
+      background: rgba(255,255,255,0.97);
+      border-radius: 26px;
+      border: 2.5px solid #f6fcff;
+      box-shadow: 0 14px 36px rgba(33,184,225,0.20), 0 2px 12px rgba(0,0,0,0.06);
+      overflow:hidden;
+    }
+    .fd-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding: 18px 18px 14px;
+      background: linear-gradient(135deg, #ffffff 0%, #ecfbff 100%);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .fd-title{
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #0a5a94;
+      letter-spacing: .2px;
+    }
+    .fd-sub{
+      margin-top: 4px;
+      font-size: 0.98rem;
+      color: #2196d4;
+      opacity: .92;
+    }
+    .fd-body{ padding: 16px 18px 18px; }
+    .fd-grid{
+      display:grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 980px){
+      .fd-grid{ grid-template-columns: 1fr; }
+    }
+    @media (max-width: 650px){
+      .fd-wrap{ margin-bottom: 30px; }
+      .fd-head{ padding: 16px 14px 12px; }
+      .fd-body{ padding: 14px; }
+      .fd-panel{ border-radius: 22px; }
+    }
+
+    .fd-card{
+      background: #fff;
+      border-radius: 22px;
+      border: 2px solid #f2fbff;
+      box-shadow: 0 8px 26px rgba(33,184,225,0.14), 0 2px 10px rgba(0,0,0,0.04);
+      overflow:hidden;
+    }
+    .fd-card-inner{ padding: 14px; }
+
+    .fd-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 10px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 10px;
+    }
+    .fd-pill{
+      background: rgba(33,184,225,0.10);
+      border: 1px solid rgba(33,184,225,0.22);
+      color: #0a5a94;
+      font-weight: 800;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 1.05rem;
+      white-space: nowrap;
+    }
+    .fd-pill.bad{
+      background: rgba(254,71,71,0.10);
+      border-color: rgba(254,71,71,0.25);
+      color: #d81b41;
+    }
+    .fd-pill.warn{
+      background: rgba(255,176,32,0.12);
+      border-color: rgba(255,176,32,0.28);
+      color: #ad6a00;
+    }
+    .fd-select{
+      flex: 1 1 240px;
+      min-width: 220px;
+      border-radius: 14px;
+      border: 1.5px solid #d8eef9;
+      padding: 12px 14px;
+      outline: none;
+      color: #0a5a94;
+      background: #f6fdff;
+      font-weight: 700;
+      font-size: 1.02rem;
+    }
+    .fd-btn{
+      border: none;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      cursor: pointer;
+      background: linear-gradient(90deg, #1aa9d6 0%, #17b8a3 100%);
+      color:#fff;
+      box-shadow: 0 6px 18px rgba(33,184,225,0.25);
+      transition: transform .12s ease;
+      white-space: nowrap;
+    }
+    .fd-btn:active{ transform: scale(0.98); }
+    .fd-btn:disabled{
+      opacity:.6;
+      cursor:not-allowed;
+      box-shadow:none;
+    }
+    .fd-btn.gray{
+      background: #e9f7ff;
+      color: #167bc2;
+      border: 1.5px solid #d8eef9;
+      box-shadow:none;
+    }
+    .fd-btn.danger{
+      background: linear-gradient(135deg, #fe4747 0%, #f94770 100%);
+      box-shadow: 0 8px 18px rgba(254,71,71,0.22);
+    }
+
+    .fd-kpi{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0 12px 0;
+    }
+    @media (max-width: 520px){
+      .fd-kpi{ grid-template-columns: 1fr; }
+      .fd-select{ width:100%; min-width: unset; }
+    }
+    .fd-kpi-box{
+      background: #f6fdff;
+      border: 1.5px solid #d8eef9;
+      border-radius: 16px;
+      padding: 12px 12px;
+    }
+    .fd-kpi-label{
+      font-size: 1rem;
+      color: #0a5a94;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .fd-kpi-value{
+      font-size: 1.2rem;
+      color: #0a4d78;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+
+    .fd-camBox{
+      position:relative;
+      width:100%;
+      aspect-ratio: 4 / 3;
+      background:#000;
+      border-radius: 20px;
+      overflow:hidden;
+      border: 2px solid #e6f7ff;
+    }
+    .fd-camBox video,
+    .fd-camBox canvas{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit: cover;
+    }
+    .fd-camBox canvas{ pointer-events:none; }
+
+    .fd-overlay{
+      position:absolute;
+      inset:0;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap: 12px;
+      background: rgba(0,0,0,0.55);
+      color: rgba(255,255,255,0.92);
+      text-align:center;
+      padding: 16px;
+    }
+    .fd-spinner{
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.28);
+      border-top: 4px solid rgba(255,255,255,0.9);
+      animation: fdspin 1s linear infinite;
+    }
+    @keyframes fdspin{ to { transform: rotate(360deg); } }
+    .fd-ov-title{ font-weight: 900; }
+    .fd-ov-sub{ opacity:.85; font-weight: 700; }
+
+    .fd-mic{
+      height: 92px;
+      border-radius: 20px;
+      border: 2px solid #f2fbff;
+      background: #f6fdff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 54px;
+      box-shadow: inset 0 0 0 2px rgba(33,184,225,0.08);
+      transition: transform .15s ease;
+      user-select:none;
+    }
+    .fd-mic.active{
+      transform: scale(1.03);
+      box-shadow: 0 0 0 3px rgba(254,71,71,0.18), inset 0 0 0 2px rgba(33,184,225,0.08);
+    }
+    .fd-status{
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1.5px solid #d8eef9;
+      background: #f6fdff;
+      color: #0a5a94;
+      font-weight: 900;
+      font-size: 1.05rem;
+      text-align:center;
+      min-height: 52px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .fd-status.alert{
+      background: rgba(254,71,71,0.10);
+      border-color: rgba(254,71,71,0.22);
+      color: #c9183d;
+    }
+    .fd-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:center;
+      margin-top: 10px;
+    }
+    .fd-log{
+      margin-top: 12px;
+      border-radius: 16px;
+      border: 1.5px solid #d8eef9;
+      background: #ffffff;
+      padding: 10px;
+      max-height: 220px;
+      overflow:auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      color: rgba(10,35,55,0.78);
+    }
+    .fd-log .row{
+      padding: 6px 4px;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .fd-log .row:last-child{ border-bottom:none; }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="logo-group">
+      <img src="images/MedimateAI.png" alt="Medimate Logo" class="logo-img">
+    </div>
+    <div class="topbar-actions">
+      <button class="home-btn" onclick="window.location.href='main.html'" title="Home">
+        <i class="fa-solid fa-house"></i>
+      </button>
+      <button class="profile-btn" title="โปรไฟล์" onclick="window.location.href='profile.html'">
+        <i class="fa-solid fa-user"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <!-- แถบสถานะตู้จ่ายยา (ข้อมูลจริงจากบอร์ด UNO Q) -->
+    <div class="hw-strip" id="hwStrip" onclick="window.location.href='dispenser.html'" tabindex="0">
+      <div class="hw-strip-head">
+        <span><i class="fa-solid fa-hand-holding-medical"></i> ตู้จ่ายยา</span>
+        <span class="hw-conn" id="hwConn">กำลังเชื่อมต่อ…</span>
+      </div>
+      <div class="hw-tubes" id="hwTubes">
+        <div class="hw-tube"><div class="hw-tube-name">ยาหลอดที่ 1</div><div class="hw-tube-count">–</div></div>
+        <div class="hw-tube"><div class="hw-tube-name">ยาหลอดที่ 2</div><div class="hw-tube-count">–</div></div>
+        <div class="hw-tube"><div class="hw-tube-name">ยาหลอดที่ 3</div><div class="hw-tube-count">–</div></div>
+      </div>
+    </div>
+
+    <div class="feature-group-title">หมวดฟังก์ชัน</div>
+    <div class="feature-grid">
+      <div class="feature-card sos-btn tap-card" id="sosBtn" tabindex="0">
+        <div class="feature-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="feature-title">SOS</div>
+        <div class="feature-desc">ฉุกเฉิน</div>
+      </div>
+      <div class="feature-card tap-card" onclick="window.location.href='dispenser.html'">
+        <div class="feature-icon"><i class="fa-solid fa-hand-holding-medical"></i></div>
+        <div class="feature-title">Medication Dispenser</div>
+        <div class="feature-desc">ตู้จ่ายยา</div>
+      </div>
+      <div class="feature-card tap-card" onclick="window.location.href='Drug Information.html'">
+        <div class="feature-icon"><i class="fa-solid fa-pills"></i></div>
+        <div class="feature-title">Drug information</div>
+        <div class="feature-desc">ข้อมูลยา</div>
+      </div>
+      <div class="feature-card tap-card" onclick="window.location.href='Dispensary History.html'">
+        <div class="feature-icon"><i class="fa-solid fa-file-medical"></i></div>
+        <div class="feature-title">Dispensary History</div>
+        <div class="feature-desc">ประวัติการจ่ายยา</div>
+      </div>
+      <div class="feature-card tap-card" onclick="window.location.href='chatbot.html'">
+        <div class="feature-icon"><i class="fa-solid fa-comments"></i></div>
+        <div class="feature-title">Chat Bot</div>
+        <div class="feature-desc">แชทบอท</div>
+      </div>
+      <div class="feature-card tap-card" onclick="window.location.href='Doctor Appointment.html'">
+        <div class="feature-icon"><i class="fa-solid fa-calendar-check"></i></div>
+        <div class="feature-title">Check the appointment time</div>
+        <div class="feature-desc">ตรวจสอบเวลาหมอนัด</div>
+      </div>
+      <div class="feature-card tap-card" onclick="window.location.href='Contact thr developer.html'">
+        <div class="feature-icon"><i class="fa-solid fa-phone"></i></div>
+        <div class="feature-title">Contact thr developer</div>
+        <div class="feature-desc">ติดต่อผู้พัฒนา</div>
+      </div>
+    </div>
+
+    <!-- ==========================================================
+         ✅ ฝังระบบตรวจจับการล้ม "อยู่หน้าหลักเลย" (ไม่มีปุ่มเปิด)
+         ========================================================== -->
+    <div class="fd-wrap" id="fallSection">
+      <div class="fd-panel">
+        <div class="fd-head">
+          <div>
+            <div class="fd-title">Medimate AI - Fall detection</div>
+          </div>
+          <div class="fd-pill warn" id="fdHintPill">แตะหน้าจอ 1 ครั้งเพื่อเริ่มขออนุญาต</div>
+        </div>
+
+        <div class="fd-body">
+          <div class="fd-grid">
+
+            <!-- กล้อง -->
+            <div class="fd-card">
+              <div class="fd-card-inner">
+                <div class="fd-row">
+                  <div class="fd-pill warn" id="fdCamPill">ยังไม่เริ่ม</div>
+
+                  <select id="fdCameraSelect" class="fd-select">
+                    <option value="">กำลังโหลดรายชื่อกล้อง…</option>
+                  </select>
+
+                  <button id="fdSwitchCamBtn" class="fd-btn gray" disabled>เปลี่ยนกล้อง</button>
+                </div>
+
+                <div class="fd-kpi">
+                  <div class="fd-kpi-box">
+                    <div class="fd-kpi-label">ท่า</div>
+                    <div class="fd-kpi-value" id="fdPosture">-</div>
+                  </div>
+                  <div class="fd-kpi-box">
+                    <div class="fd-kpi-label">สถานะ</div>
+                    <div class="fd-kpi-value" id="fdFall">-</div>
+                  </div>
+                </div>
+
+                <div class="fd-camBox">
+                  <video id="fdVideo" autoplay muted playsinline></video>
+                  <canvas id="fdCanvas"></canvas>
+                  <div class="fd-overlay" id="fdOverlay">
+                    <div class="fd-spinner"></div>
+                    <div class="fd-ov-title">แตะหน้าจอ 1 ครั้งเพื่อเริ่มระบบ</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- เสียง -->
+            <div class="fd-card">
+              <div class="fd-card-inner">
+                <div class="fd-row" style="justify-content:space-between;">
+                  <div class="fd-pill warn" id="fdMicPill">ยังไม่ฟังเสียง</div>
+                  <div class="fd-mic" id="fdMicIcon">🎤</div>
+                </div>
+
+                <div class="fd-status" id="fdVoiceStatus">ระบบเสียงพร้อมเมื่ออนุญาตไมโครโฟน</div>
+
+                <div class="fd-actions">
+                  <button class="fd-btn" id="fdStartVoiceBtn" disabled>เริ่มฟังเสียง</button>
+                  <button class="fd-btn danger" id="fdStopVoiceBtn" disabled>หยุดฟังเสียง</button>
+                </div>
+
+                <div class="fd-log" id="fdLog"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <audio id="fdAlertAudio" src="alert.mp3" preload="auto"></audio>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+  <script>
+    // ===== Firebase (medimate-end) =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyAM5gSwcz9CWcZFcYW9VPOOckWouXj7Ehw",
+      authDomain: "medimate-end.firebaseapp.com",
+      projectId: "medimate-end",
+      storageBucket: "medimate-end.firebasestorage.app",
+      messagingSenderId: "411322830334",
+      appId: "1:411322830334:web:c08cdb63ea9fff1a9444af",
+      measurementId: "G-CZLM5M88BE"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // --- Guard ---
+    let currentFullname = "";
+    let currentEmail = "";
+    auth.onAuthStateChanged(async user => {
+      if (user) {
+        const doc = await db.collection('users').doc(user.uid).get();
+        currentFullname = doc.exists && doc.data().fullname ? doc.data().fullname : '';
+        currentEmail = doc.exists && doc.data().email ? doc.data().email : (user.email || '');
+      } else {
+        window.location.replace("login.html");
+      }
+    });
+
+    // --- Ripple / Tap feedback ---
+    function addRipple(el, x, y) {
+      const rect = el.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      const ripple = document.createElement("span");
+      ripple.className = "ripple";
+      ripple.style.width = ripple.style.height = size + "px";
+      ripple.style.left = (x - rect.left - size / 2) + "px";
+      ripple.style.top = (y - rect.top - size / 2) + "px";
+      el.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 560);
+    }
+    document.querySelectorAll(".tap-card").forEach(card => {
+      card.addEventListener("pointerdown", (e) => {
+        const isTouchLike = e.pointerType === "touch" || e.pointerType === "pen";
+        if (!isTouchLike) return;
+        addRipple(card, e.clientX, e.clientY);
+      });
+    });
+
+    // --- EmailJS SOS แจ้งเตือน ---
+    emailjs.init("Ba8ZCPoRJfnx1xjWm");
+    document.getElementById('sosBtn').onclick = function() {
+      let nameToSend = currentFullname ? `แจ้งเหตุฉุกเฉินโดย: ${currentFullname}` : "แจ้งเหตุฉุกเฉิน (SOS)";
+      emailjs.send("service_cj5ap1a", "template_8twhp3t", {
+        name: nameToSend,
+        email: "phurin496@gmail.com",
+        message: `เกิดเหตุฉุกเฉิน! กรุณาติดต่อกลับโดยด่วน\n${nameToSend}`
+      }).then(function() {
+        alert("แจ้งเตือนอีเมลฉุกเฉินเรียบร้อยแล้ว!");
+      }, function() {
+        alert("ส่งแจ้งเตือนอีเมลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      });
+    };
+  </script>
+
+  <!-- ==========================================================
+       ✅ Fall Detection Script (ฝังหน้า main / ไม่มีปุ่มเปิด)
+       ========================================================== -->
+  <script>
+    /* ===================== CONFIG ===================== */
+    const FD_ALERT_EMAIL_TO = "phurin496@gmail.com";
+    const FD_ALERT_SOUND_MS = 3000; // 3 วิ
+
+    // EmailJS (ของระบบจับล้ม)
+    const FD_EMAILJS_SERVICE_ID = "service_awbm95m";
+    const FD_EMAILJS_TEMPLATE_ID = "template_lmja5b5";
+    const FD_EMAILJS_PUBLIC_KEY  = "sfkjBD2_MehbOknId";
+    const FD_EMAIL_COOLDOWN_MS = 60_000; // กันส่งรัว
+    let fdLastEmailSentAt = 0;
+
+    /* ===================== UI ===================== */
+    const fdHintPill = document.getElementById("fdHintPill");
+    const fdCamPill  = document.getElementById("fdCamPill");
+    const fdMicPill  = document.getElementById("fdMicPill");
+    const fdPosture  = document.getElementById("fdPosture");
+    const fdFall     = document.getElementById("fdFall");
+
+    const fdVoiceStatus = document.getElementById("fdVoiceStatus");
+    const fdMicIcon     = document.getElementById("fdMicIcon");
+    const fdLogEl       = document.getElementById("fdLog");
+
+    const fdStartVoiceBtn = document.getElementById("fdStartVoiceBtn");
+    const fdStopVoiceBtn  = document.getElementById("fdStopVoiceBtn");
+
+    const fdOverlay = document.getElementById("fdOverlay");
+
+    const fdVideo  = document.getElementById("fdVideo");
+    const fdCanvas = document.getElementById("fdCanvas");
+    const fdCtx    = fdCanvas.getContext("2d");
+
+    const fdCameraSelect = document.getElementById("fdCameraSelect");
+    const fdSwitchCamBtn = document.getElementById("fdSwitchCamBtn");
+
+    function fdSetPill(el, type, text){
+      el.classList.remove("bad","warn");
+      if(type) el.classList.add(type);
+      el.textContent = text;
+    }
+    function fdSetVoiceStatus(text, isAlert=false){
+      fdVoiceStatus.textContent = text;
+      fdVoiceStatus.classList.toggle("alert", !!isAlert);
+    }
+    function fdSetMicActive(on){
+      fdMicIcon.classList.toggle("active", !!on);
+    }
+    function fdLog(msg){
+      const row = document.createElement("div");
+      row.className = "row";
+      const t = new Date().toLocaleTimeString("th-TH");
+      row.textContent = `[${t}] ${msg}`;
+      fdLogEl.appendChild(row);
+      fdLogEl.scrollTop = fdLogEl.scrollHeight;
+    }
+
+    /* ===================== Notification ===================== */
+    async function fdEnsureNotificationPermission(){
+      if(!("Notification" in window)){
+        fdLog("🔕 ไม่รองรับ Notification");
+        return false;
+      }
+      if(Notification.permission === "granted") return true;
+      const p = await Notification.requestPermission();
+      fdLog("🔔 Notification: " + p);
+      return p === "granted";
+    }
+    function fdNotify(title, body){
+      try{
+        if("Notification" in window && Notification.permission === "granted"){
+          new Notification(title, { body });
+        }
+      }catch(e){}
+    }
+
+    /* ===================== Email (send จริงอัตโนมัติ) ===================== */
+    async function fdSendEmail(reason, details=""){
+      const now = Date.now();
+      if(now - fdLastEmailSentAt < FD_EMAIL_COOLDOWN_MS){
+        fdLog("⏳ ข้ามส่งอีเมล (กันส่งรัว)");
+        return;
+      }
+
+      const t = new Date();
+      const payload = {
+        title: "แจ้งเตือนฉุกเฉิน",
+        name: "Medimate AI",
+        time: t.toLocaleString("th-TH"),
+        message: `${reason}\n\nรายละเอียด:\n${details || "-"}`,
+        email: FD_ALERT_EMAIL_TO
+      };
+
+      try{
+        // ใช้ emailjs-com v3: ส่งได้โดยไม่ไปแตะ init ของ SOS
+        await emailjs.send(FD_EMAILJS_SERVICE_ID, FD_EMAILJS_TEMPLATE_ID, payload, FD_EMAILJS_PUBLIC_KEY);
+        fdLastEmailSentAt = now;
+        fdLog("📧 ✅ ส่งอีเมลสำเร็จ → " + FD_ALERT_EMAIL_TO);
+      }catch(err){
+        fdLog("📧 ❌ ส่งอีเมลล้มเหลว: " + (err?.text || err?.message || "unknown"));
+      }
+    }
+
+    /* ===================== Sound (3 วิ) ===================== */
+    const fdAlertAudio = document.getElementById("fdAlertAudio");
+    let fdAlertTimer = null;
+
+    function fdStopSound(){
+      if(fdAlertTimer){ clearTimeout(fdAlertTimer); fdAlertTimer=null; }
+      try{ fdAlertAudio.pause(); fdAlertAudio.currentTime = 0; }catch(e){}
+    }
+    function fdPlaySound(ms = FD_ALERT_SOUND_MS){
+      fdStopSound();
+      fdAlertAudio.currentTime = 0;
+      fdAlertAudio.play().catch(()=>{});
+      fdAlertTimer = setTimeout(fdStopSound, ms);
+    }
+    async function fdUnlockAudio(){
+      try{
+        await fdAlertAudio.play();
+        fdAlertAudio.pause();
+        fdAlertAudio.currentTime = 0;
+        return true;
+      }catch(e){
+        return false;
+      }
+    }
+
+    /* ===================== Camera ===================== */
+    let fdStream = null;
+    let fdDeviceId = null;
+
+    function fdResizeCanvas(){
+      const rect = fdCanvas.parentElement.getBoundingClientRect();
+      fdCanvas.width = rect.width;
+      fdCanvas.height = rect.height;
+    }
+    window.addEventListener("resize", fdResizeCanvas);
+
+    async function fdStopStream(){
+      if(fdStream){
+        fdStream.getTracks().forEach(t => t.stop());
+        fdStream = null;
+      }
+    }
+    async function fdStartStream(deviceId=null){
+      await fdStopStream();
+      const constraints = { video: deviceId ? { deviceId:{ exact: deviceId } } : { facingMode:"user" }, audio:false };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      fdStream = stream;
+      fdVideo.srcObject = stream;
+      fdSetPill(fdCamPill, null, "กล้องพร้อม");
+    }
+    async function fdLoadCameras(){
+      // เปิดกล้องก่อนเพื่อให้ label โผล่
+      if(!fdStream) await fdStartStream(null);
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(d => d.kind === "videoinput");
+
+      fdCameraSelect.innerHTML = "";
+      cams.forEach((cam, idx)=>{
+        const opt = document.createElement("option");
+        opt.value = cam.deviceId;
+        opt.textContent = cam.label || `กล้อง ${idx+1}`;
+        fdCameraSelect.appendChild(opt);
+      });
+
+      if(!fdDeviceId && cams[0]){
+        fdDeviceId = cams[0].deviceId;
+        fdCameraSelect.value = fdDeviceId;
+      }
+      fdSwitchCamBtn.disabled = cams.length <= 1 ? true : false;
+    }
+
+    fdSwitchCamBtn.addEventListener("click", async ()=>{
+      const selected = fdCameraSelect.value;
+      if(!selected) return;
+      fdDeviceId = selected;
+      fdOverlay.style.display = "flex";
+      fdSetPill(fdCamPill, "warn", "กำลังสลับกล้อง…");
+      try{
+        await fdStartStream(fdDeviceId);
+        fdSetPill(fdCamPill, null, "กำลังตรวจจับ");
+      }catch(e){
+        fdSetPill(fdCamPill, "bad", "สลับกล้องไม่ได้");
+        fdLog("❌ สลับกล้องไม่ได้: " + (e?.message || e));
+      }finally{
+        fdOverlay.style.display = "none";
+      }
+    });
+
+    /* ===================== Pose ===================== */
+    function fdMid(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+    function fdAngleDeg(a,b){ return Math.atan2(b.y-a.y, b.x-a.x) * 180/Math.PI; }
+    function fdDist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+    function fdLM(lm,i){ return (lm && lm[i]) ? lm[i] : null; }
+    function fdVis(l){ return !!l && (l.visibility ?? 1) >= 0.5; }
+
+    function fdPostureClassify(lm){
+      const nose = fdLM(lm,0);
+      const ls = fdLM(lm,11), rs = fdLM(lm,12);
+      const lh = fdLM(lm,23), rh = fdLM(lm,24);
+      const lk = fdLM(lm,25), rk = fdLM(lm,26);
+      const la = fdLM(lm,27), ra = fdLM(lm,28);
+
+      const hasShoulders = fdVis(ls) && fdVis(rs);
+      const hasHips = fdVis(lh) && fdVis(rh);
+
+      const shoulderMid = hasShoulders ? fdMid(ls,rs) : null;
+      const hipMid = hasHips ? fdMid(lh,rh) : null;
+
+      const hasKnees = fdVis(lk) && fdVis(rk);
+      const kneeMid = hasKnees ? fdMid(lk,rk) : null;
+
+      const hasAnkles = fdVis(la) && fdVis(ra);
+      const ankleMid = hasAnkles ? fdMid(la,ra) : null;
+
+      let torsoAngleAbs = null;
+      let nearHorizontal = false;
+
+      if(shoulderMid && hipMid){
+        torsoAngleAbs = Math.abs(fdAngleDeg(shoulderMid, hipMid));
+        nearHorizontal = (torsoAngleAbs < 35 || torsoAngleAbs > 145);
+      }else if(fdVis(nose) && hipMid){
+        torsoAngleAbs = Math.abs(fdAngleDeg(nose, hipMid));
+        nearHorizontal = (torsoAngleAbs < 30 || torsoAngleAbs > 150);
+      }
+
+      const hipY = hipMid?.y ?? null;
+      const ankleY = ankleMid?.y ?? null;
+      const hipToAnkle = (hipY!=null && ankleY!=null) ? Math.abs(ankleY-hipY) : null;
+
+      let shoulderWidth = null;
+      if(hasShoulders) shoulderWidth = fdDist(ls, rs);
+      let upperBodyHeight = null;
+      if(shoulderMid && hipMid) upperBodyHeight = Math.abs(hipMid.y - shoulderMid.y);
+
+      // นอน
+      if(torsoAngleAbs!=null && nearHorizontal){
+        let confidence = 0.85;
+        if(shoulderWidth!=null && upperBodyHeight!=null && shoulderWidth > upperBodyHeight*1.2){
+          confidence = Math.min(0.95, confidence+0.07);
+        }
+        return { posture:"LYING", confidence };
+      }
+
+      // ยืน/นั่ง
+      if(hipToAnkle!=null){
+        let posture="SITTING", confidence=0.70;
+        if(hipToAnkle>0.22) posture="STANDING", confidence=0.80;
+        else if(hipToAnkle>=0.12) posture="SITTING", confidence=0.70;
+        else posture="SITTING", confidence=0.55;
+
+        if(torsoAngleAbs!=null){
+          const verticalLike = (torsoAngleAbs>60 && torsoAngleAbs<120);
+          if(verticalLike && posture==="STANDING") confidence = Math.min(0.90, confidence+0.08);
+          if(!verticalLike && posture==="SITTING") confidence = Math.min(0.85, confidence+0.05);
+        }
+        return { posture, confidence };
+      }
+
+      if(torsoAngleAbs!=null){
+        const verticalLike = (torsoAngleAbs>65 && torsoAngleAbs<115);
+        return { posture: verticalLike ? "STANDING" : "SITTING", confidence:0.50 };
+      }
+
+      return { posture:"UNKNOWN", confidence:0.35 };
+    }
+
+    /* ===================== Fall logic ===================== */
+    let fdLastHipY=null, fdLastT=null;
+    let fdFastDropAt=null, fdLyingSince=null;
+    let fdFallLatched=false, fdRecoveredSince=null;
+    let fdNearFallSince=null;
+    let fdFallLatchedSent=false;
+
+    const FD_FALL = {
+      SPEED_THRESH: 0.75,
+      DROP_WINDOW_MS: 1200,
+      LYING_HOLD_MS: 700,
+      RECOVER_HOLD_MS: 900,
+      NEAR_FALL_HOLD_MS: 450,
+      WRIST_LOW_MARGIN: 0.03
+    };
+
+    function fdDetectFall(lm, postureResult){
+      const lh = fdLM(lm,23), rh = fdLM(lm,24);
+      const lw = fdLM(lm,15), rw = fdLM(lm,16);
+      const now = performance.now();
+
+      if(!lh || !rh) return { state: fdFallLatched ? "FALL_CONFIRMED" : "UNKNOWN" };
+
+      const hipY = (lh.y + rh.y)/2;
+
+      // ตกเร็ว
+      let fastDrop=false;
+      if(fdLastHipY!=null && fdLastT!=null){
+        const dt = (now-fdLastT)/1000;
+        const dy = hipY-fdLastHipY;
+        const speed = dy / Math.max(dt,0.001);
+        fastDrop = speed > FD_FALL.SPEED_THRESH;
+      }
+      fdLastHipY=hipY; fdLastT=now;
+      if(fastDrop) fdFastDropAt=now;
+
+      // นอนมั่นใจ
+      const lyingConfident = (postureResult.posture==="LYING" && postureResult.confidence>=0.6);
+      if(lyingConfident){ if(!fdLyingSince) fdLyingSince=now; } else { fdLyingSince=null; }
+
+      // ถ้าล็อคล้มแล้ว: ค้างเป็นล้มจนลุก
+      if(fdFallLatched){
+        const upConfident =
+          (postureResult.posture==="STANDING" && postureResult.confidence>=0.6) ||
+          (postureResult.posture==="SITTING"  && postureResult.confidence>=0.6);
+
+        if(upConfident){ if(!fdRecoveredSince) fdRecoveredSince=now; }
+        else fdRecoveredSince=null;
+
+        if(fdRecoveredSince && (now-fdRecoveredSince>=FD_FALL.RECOVER_HOLD_MS)){
+          fdFallLatched=false;
+          fdRecoveredSince=null;
+          fdFastDropAt=null;
+          fdNearFallSince=null;
+          fdFallLatchedSent=false;
+          return { state:"OK" };
+        }
+        return { state:"FALL_CONFIRMED" };
+      }
+
+      // ล้มจริง: ตกเร็ว + ไปนอน (ภายในหน้าต่างเวลา)
+      const withinWindow = fdFastDropAt && (now-fdFastDropAt<=FD_FALL.DROP_WINDOW_MS);
+      const lyingHold = fdLyingSince && (now-fdLyingSince>=FD_FALL.LYING_HOLD_MS);
+
+      if(withinWindow && lyingHold){
+        fdFallLatched=true;
+        fdRecoveredSince=null;
+        fdNearFallSince=null;
+        return { state:"FALL_CONFIRMED" };
+      }
+
+      // เกือบล้ม: ตกเร็ว แต่ไปนั่ง/มือดันทัน
+      if(withinWindow && !lyingConfident){
+        const sittingConfident = (postureResult.posture==="SITTING" && postureResult.confidence>=0.6);
+        const hasWrists = !!lw && !!rw;
+        const wristY = hasWrists ? ((lw.y+rw.y)/2) : null;
+        const braceHands = hasWrists && (wristY >= hipY - FD_FALL.WRIST_LOW_MARGIN);
+
+        if(sittingConfident || braceHands){
+          if(!fdNearFallSince) fdNearFallSince=now;
+          const holdOK = (now-fdNearFallSince>=FD_FALL.NEAR_FALL_HOLD_MS);
+          if(holdOK){
+            if(sittingConfident) return { state:"NEAR_FALL_SIT" };
+            if(braceHands) return { state:"NEAR_FALL_BRACE" };
+          }
+          return { state:"FALL_LIKELY" };
+        }else fdNearFallSince=null;
+      }else fdNearFallSince=null;
+
+      if(withinWindow && lyingConfident) return { state:"FALL_LIKELY" };
+      if(fastDrop) return { state:"DROP_DETECTED" };
+      return { state:"OK" };
+    }
+
+    const fdThPost = { STANDING:"ยืน", SITTING:"นั่ง", LYING:"นอน", UNKNOWN:"ไม่ชัด" };
+    const fdThFall = {
+      FALL_CONFIRMED: "ล้ม",
+      FALL_LIKELY: "สงสัยว่าล้ม",
+      DROP_DETECTED: "ตกลงเร็ว",
+      NEAR_FALL_SIT: "เกือบล้ม (นั่งทัน)",
+      NEAR_FALL_BRACE: "เกือบล้ม (เอามือดันทัน)",
+      OK: "ปกติ",
+      UNKNOWN: "ไม่ชัด"
+    };
+
+    const fdPose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+    fdPose.setOptions({ modelComplexity:0, smoothLandmarks:false, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
+
+    fdPose.onResults(async (results)=>{
+      fdCtx.clearRect(0,0,fdCanvas.width,fdCanvas.height);
+
+      if(!results.poseLandmarks){
+        fdPosture.textContent = "-";
+        fdFall.textContent = "ไม่พบคน";
+        fdSetPill(fdCamPill, "warn", "ไม่พบคน");
+        return;
+      }
+
+      fdSetPill(fdCamPill, null, "กำลังตรวจจับ");
+      drawConnectors(fdCtx, results.poseLandmarks, POSE_CONNECTIONS, { color:"#21a0e7", lineWidth:3 });
+      drawLandmarks(fdCtx, results.poseLandmarks, { color:"#f94770", radius:3 });
+
+      const p = fdPostureClassify(results.poseLandmarks);
+      const f = fdDetectFall(results.poseLandmarks, p);
+
+      fdPosture.textContent = `${fdThPost[p.posture] ?? p.posture} (${Math.round(p.confidence*100)}%)`;
+      fdFall.textContent = `${fdThFall[f.state] ?? f.state}`;
+
+      // ✅ ล้มจริง: เล่นเสียง 3 วิ + ส่งอีเมลครั้งเดียว (ค้างล้มจนกว่าจะลุก)
+      if(f.state === "FALL_CONFIRMED"){
+        fdSetPill(fdCamPill, "bad", "ตรวจพบล้ม");
+        if(!fdFallLatchedSent){
+          fdFallLatchedSent = true;
+
+          fdPlaySound(FD_ALERT_SOUND_MS);
+          fdNotify("🚨 ตรวจพบการล้ม", "ระบบตรวจพบการล้ม — กรุณาตรวจสอบทันที");
+          fdLog("⚠ ล้มจริง → เล่นเสียง 3 วิ + ส่งอีเมล");
+
+          await fdSendEmail(
+            "ตรวจพบการล้ม (ล้มจริง)",
+            `ท่า: ${fdThPost[p.posture]} | ความมั่นใจ: ${Math.round(p.confidence*100)}%`
+          );
+        }
+      }
+    });
+
+    async function fdLoop(){
+      if(fdVideo.readyState >= 2){
+        await fdPose.send({ image: fdVideo });
+      }
+      requestAnimationFrame(fdLoop);
+    }
+
+    /* ===================== Voice ===================== */
+    let fdRecog=null;
+    let fdListening=false;
+
+    function fdInitSpeech(){
+      if(!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)){
+        fdSetPill(fdMicPill, "bad", "ไม่รองรับ");
+        fdSetVoiceStatus("เบราว์เซอร์ไม่รองรับการรับฟังเสียง (แนะนำ Chrome/Edge)", true);
+        return;
+      }
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      fdRecog = new SR();
+      fdRecog.continuous = true;
+      fdRecog.interimResults = true;
+      fdRecog.lang = "th-TH";
+
+      fdRecog.onstart = ()=>{
+        fdListening = true;
+        fdSetPill(fdMicPill, null, "กำลังฟัง");
+        fdSetMicActive(true);
+        fdSetVoiceStatus("กำลังฟัง… (พูดว่า “ช่วยด้วย”)");
+        fdStartVoiceBtn.disabled = true;
+        fdStopVoiceBtn.disabled  = false;
+        fdLog("🎤 เริ่มฟังเสียงแล้ว");
+      };
+
+      fdRecog.onresult = async (event)=>{
+        let finalTranscript="", interim="";
+        for(let i=event.resultIndex; i<event.results.length; i++){
+          const tr = event.results[i][0].transcript;
+          if(event.results[i].isFinal) finalTranscript += tr;
+          else interim += tr;
+        }
+        if(interim){
+          fdSetVoiceStatus("กำลังฟัง: " + interim);
+        }
+
+        if(finalTranscript){
+          const said = finalTranscript.trim();
+          fdLog("💬 ได้ยินว่า: " + said);
+
+          if(said.includes("ช่วยด้วย")){
+            fdSetPill(fdMicPill, "bad", "แจ้งเตือน");
+            fdSetVoiceStatus("🚨 ตรวจพบ “ช่วยด้วย” → เล่นเสียง 3 วิ + ส่งอีเมล", true);
+
+            fdPlaySound(FD_ALERT_SOUND_MS);
+            fdNotify("🚨 ขอความช่วยเหลือ", "ตรวจพบคำว่า “ช่วยด้วย”");
+            fdLog("🚨 ช่วยด้วย → เล่นเสียง 3 วิ + ส่งอีเมล");
+
+            await fdSendEmail('ตรวจพบคำว่า "ช่วยด้วย"', `ข้อความที่จับได้: ${said}`);
+
+            setTimeout(()=>{
+              if(fdListening){
+                fdSetPill(fdMicPill, null, "กำลังฟัง");
+                fdSetVoiceStatus("กำลังฟัง… (พูดว่า “ช่วยด้วย”)");
+              }
+            }, FD_ALERT_SOUND_MS);
+          }
+        }
+      };
+
+      fdRecog.onerror = (event)=>{
+        fdLog("❌ ไมค์ผิดพลาด: " + event.error);
+        if(event.error === "not-allowed" || event.error === "service-not-allowed"){
+          fdSetPill(fdMicPill, "bad", "ไม่ได้รับอนุญาต");
+          fdSetVoiceStatus("ไม่ได้รับอนุญาตไมค์ กรุณา Allow แล้วลองใหม่", true);
+          fdStartVoiceBtn.disabled = false;
+          fdStopVoiceBtn.disabled  = true;
+          fdSetMicActive(false);
+        }
+      };
+
+      fdRecog.onend = ()=>{
+        if(fdListening){
+          try{ fdRecog.start(); }catch(e){}
+        }else{
+          fdSetPill(fdMicPill, "warn", "หยุดฟัง");
+          fdSetVoiceStatus("หยุดฟังแล้ว");
+          fdSetMicActive(false);
+          fdStartVoiceBtn.disabled = false;
+          fdStopVoiceBtn.disabled  = true;
+        }
+      };
+    }
+
+    fdStartVoiceBtn.addEventListener("click", ()=>{
+      if(!fdRecog) return;
+      try{ fdRecog.start(); }catch(e){}
+    });
+
+    fdStopVoiceBtn.addEventListener("click", ()=>{
+      fdListening = false;
+      try{ fdRecog.stop(); }catch(e){}
+      fdStopSound(); // หยุดเสียงทันที
+      fdSetVoiceStatus("หยุดฟังแล้ว (เสียงถูกหยุด)");
+      fdSetPill(fdMicPill, "warn", "หยุดฟัง");
+      fdSetMicActive(false);
+      fdLog("⛔ หยุดฟัง + หยุดเสียงเตือน");
+    });
+
+    /* ===================== Start (ไม่มีปุ่ม: เริ่มเมื่อ user แตะหน้าจอครั้งแรก) ===================== */
+    let fdStarted = false;
+
+    async function fdStartAll(){
+      if(fdStarted) return;
+      fdStarted = true;
+
+      fdHintPill.style.display = "none";
+      fdOverlay.style.display = "flex";
+      fdLog("🚀 เริ่มระบบ: ขออนุญาต (แจ้งเตือน/เสียง/กล้อง/ไมค์)");
+
+      await fdEnsureNotificationPermission();
+
+      const audioOK = await fdUnlockAudio();
+      fdLog("🔊 Audio unlock: " + (audioOK ? "สำเร็จ" : "อาจถูกบล็อก"));
+
+      // กล้อง
+      try{
+        fdSetPill(fdCamPill, "warn", "กำลังเริ่มกล้อง…");
+        await fdStartStream(null);
+        await fdLoadCameras();
+        fdOverlay.style.display = "none";
+        fdResizeCanvas();
+        fdLog("📷 กล้องพร้อมใช้งาน");
+      }catch(e){
+        fdOverlay.style.display = "flex";
+        fdSetPill(fdCamPill, "bad", "เปิดกล้องไม่ได้");
+        fdLog("❌ เปิดกล้องไม่ได้: " + (e?.message || e));
+      }
+
+      // ขอไมค์ล่วงหน้า (เพื่อไม่ให้พังตอนเริ่มฟัง)
+      try{
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+        micStream.getTracks().forEach(t => t.stop());
+        fdLog("🎙️ ได้รับอนุญาตไมค์แล้ว");
+      }catch(e){
+        fdLog("❌ ไม่ได้อนุญาตไมค์: " + (e?.message || e));
+      }
+
+      fdInitSpeech();
+      fdStartVoiceBtn.disabled = false;
+      fdStopVoiceBtn.disabled  = true;
+
+      fdSetPill(fdCamPill, null, "กำลังตรวจจับ");
+      fdSetPill(fdMicPill, "warn", "พร้อมเริ่ม");
+      fdSetVoiceStatus("พร้อมแล้ว ✅ กด “เริ่มฟังเสียง” เพื่อจับคำว่า “ช่วยด้วย”");
+      fdLog("✅ ระบบพร้อมใช้งาน");
+
+      fdVideo.onloadeddata = ()=>{
+        fdLoop();
+      };
+    }
+
+    // เริ่มเมื่อ user แตะหน้าจอครั้งแรก (ช่วยให้ browser ยอมให้เปิดกล้อง/ไมค์/เสียง/แจ้งเตือน)
+    window.addEventListener("pointerdown", fdStartAll, { once:true });
+  </script>
+
+  <!-- ===== แถบสถานะตู้จ่ายยา: ดึงจำนวนยาจริงจากบอร์ด ===== -->
+  <script src="../libs/socket.io.min.js"></script>
+  <script src="../libs/arduino.js"></script>
+  <script src="medimate-hw.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    var HW = window.MedimateHW;
+    var conn = document.getElementById("hwConn");
+    var host = document.getElementById("hwTubes");
+    var names = HW.TUBE_LABELS.slice();
+
+    function setConn(cls, text) {
+      conn.className = "hw-conn" + (cls ? " " + cls : "");
+      conn.textContent = text;
+    }
+
+    function render(pills) {
+      host.innerHTML = "";
+      for (var i = 0; i < 3; i++) {
+        var n = pills && typeof pills[i] === "number" ? pills[i] : null;
+        var el = document.createElement("div");
+        el.className = "hw-tube" + (n !== null && n <= 0 ? " empty" : "");
+        el.innerHTML =
+          '<div class="hw-tube-name"></div>' +
+          '<div class="hw-tube-count">' + (n === null ? "–" : n) + " <small>เม็ด</small></div>";
+        el.querySelector(".hw-tube-name").textContent = names[i];
+        host.appendChild(el);
+      }
+    }
+
+    function load() {
+      HW.status().then(function (s) {
+        if (Array.isArray(s.tubes)) {
+          for (var i = 0; i < 3; i++) {
+            if (s.tubes[i] && s.tubes[i].name) names[i] = s.tubes[i].name;
+          }
+        }
+        render(s.pills);
+        setConn(s.online ? "ok" : "", s.online ? "พร้อมใช้งาน" : "ยังคุยกับบอร์ดไม่ได้");
+      }).catch(function () {
+        setConn("err", "ยังไม่ได้เชื่อมต่อ");
+      });
+    }
+
+    HW.onPills(render);
+    HW.onConnect(load);
+    load();
+    setInterval(load, 15000);
+  })();
+  </script>
+</body>
+</html>

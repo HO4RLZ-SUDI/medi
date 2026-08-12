@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Medimate AI - Doctor Appointment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&family=Kanit:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <!-- Firebase (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root{
+      --bg1:#eaf7fd; --bg2:#d7f4ff;
+      --brand1:#1aa9d6; --brand2:#17b8a3;
+      --blue:#0c4a72; --blue2:#0a4d78;
+      --card:#ffffff; --stroke:#e2f4ff;
+      --shadow: 0 8px 36px rgba(41,180,225,.18), 0 2px 10px rgba(176,234,253,.18);
+      --shadow2: 0 12px 44px rgba(122,211,253,.28), 0 3px 14px rgba(106,210,249,.18);
+      --radius: 28px;
+    }
+
+    html {
+      /* เพิ่มขนาดตัวอักษรพื้นฐานทั้งเว็บ (จาก 16px เป็น 19px) เพื่อให้อ่านง่ายขึ้นสำหรับผู้สูงอายุ */
+      font-size: 19px;
+    }
+    html, body{
+      min-height:100%;
+      margin:0; padding:0;
+      font-family:'Prompt','Kanit',sans-serif;
+      background: linear-gradient(120deg, var(--bg1) 0%, var(--bg2) 100%);
+      color:#1b2a3a;
+      line-height: 1.5;
+    }
+    /* ให้เห็นกรอบโฟกัสชัดเจนเวลากดคีย์บอร์ด/แป้น Tab */
+    a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid #ff9800;
+      outline-offset: 3px;
+    }
+
+    /* ===== Topbar (เข้าชุดเดียวกับหน้าอื่น) ===== */
+    .topbar{
+      width:100%;
+      height:84px;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 32px;
+      box-sizing:border-box;
+      box-shadow:0 2px 14px rgba(80,150,200,0.09);
+      border-radius:0 0 18px 18px;
+      position: sticky;
+      top:0;
+      z-index:20;
+    }
+    .logo-group{ display:flex; align-items:center; gap:10px; }
+    .logo-img{ height:78px; width:auto; object-fit:contain; }
+    .topbar-actions{ display:flex; align-items:center; gap:16px; }
+    .home-btn, .profile-btn{
+      background: linear-gradient(90deg, var(--brand1) 0%, var(--brand2) 100%);
+      color:#fff;
+      border:none;
+      border-radius:50%;
+      width:58px; height:58px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.7rem;
+      cursor:pointer;
+      box-shadow:0 1.5px 7px rgba(0,179,179,.2);
+      transition: background .16s, transform .12s;
+    }
+    .profile-btn{ background: linear-gradient(90deg, #0f8fc7 0%, #14a89a 100%); }
+    .home-btn:hover, .profile-btn:hover{ background:#0d6f97; transform:scale(1.06); }
+
+    .header-section{
+      width:100%;
+      margin-top:32px;
+      margin-bottom:32px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding: 0 16px;
+      box-sizing:border-box;
+    }
+    .header-title{
+      color:var(--blue);
+      font-family:'Kanit','Prompt',sans-serif;
+      font-weight:800;
+      font-size:2.3rem;
+      margin-bottom:10px;
+      letter-spacing:.02em;
+      text-align:center;
+      text-shadow:0 2px 9px rgba(172,230,250,.12);
+    }
+    .header-desc{
+      color:var(--blue2);
+      font-size:1.2rem;
+      font-weight:600;
+      text-align:center;
+      max-width:900px;
+      line-height:1.6;
+    }
+
+    /* Card */
+    .wrap{
+      max-width: 980px;
+      margin: 0 auto 48px auto;
+      padding: 0 18px;
+      box-sizing: border-box;
+    }
+    .card{
+      background:var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1.6px solid var(--stroke);
+      padding: 26px 22px 22px 22px;
+      position: relative;
+      overflow:hidden;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(700px 220px at 12% 0%, rgba(52,192,235,.16), transparent 55%),
+                  radial-gradient(520px 260px at 92% 20%, rgba(79,233,211,.14), transparent 55%);
+      pointer-events:none;
+    }
+    .card > *{position:relative;}
+
+    .toolbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom: 14px;
+      flex-wrap:wrap;
+    }
+    .user-pill{
+      display:flex;align-items:center;gap:10px;
+      background:#f4fbff;
+      border:1.6px solid #cbe7fa;
+      border-radius: 18px;
+      padding: 12px 16px;
+      color:#0a5a94;
+      box-shadow:0 2px 10px rgba(183,241,252,.12);
+      font-weight:700;
+      font-size: 1.1rem;
+      max-width:100%;
+    }
+    .user-pill i{color:#0f8fc7; font-size: 1.2rem;}
+    .user-pill span{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 360px;
+      display:inline-block;
+    }
+    .add-btn{
+      background: linear-gradient(90deg, #1dc1f3 10%, #39e1c9 100%);
+      color:#fff;
+      font-size:1.2rem;
+      font-family:'Kanit','Prompt',sans-serif;
+      font-weight:800;
+      border:none;
+      border-radius: 18px;
+      padding: 16px 22px;
+      cursor:pointer;
+      box-shadow: 0 3px 14px rgba(122,217,239,.2);
+      transition: transform .13s, box-shadow .13s, filter .16s;
+      display:flex;align-items:center;gap:9px;
+    }
+    .add-btn:hover{transform:scale(1.03); box-shadow: 0 8px 22px rgba(122,217,239,.28); filter:saturate(1.05);}
+    .add-btn:active{transform:scale(.99);}
+
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .item{
+      background:#f7fcff;
+      border:1.6px solid #cbe7fa;
+      border-radius: 20px;
+      padding: 18px 16px;
+      box-shadow: 0 2px 10px rgba(183,241,252,.12);
+      display:flex;
+      align-items:stretch;
+      justify-content:space-between;
+      gap: 12px;
+      transition: transform .14s, box-shadow .18s;
+      animation: popIn .28s ease both;
+    }
+    .item:hover{ transform: translateY(-2px); box-shadow: var(--shadow2); }
+
+    .left{ min-width:0; flex: 1 1 auto; display:flex; flex-direction:column; gap: 8px; }
+    .line1{ display:flex; align-items:center; gap: 10px; flex-wrap:wrap; }
+    .dt{
+      display:flex; align-items:center; gap:8px;
+      font-weight:800;
+      color:#0a5a94;
+      font-family:'Kanit','Prompt',sans-serif;
+      font-size: 1.2rem;
+      letter-spacing:.01em;
+    }
+    .dt i{color:#0f8fc7;}
+    .note{
+      color:#0a4d78;
+      word-break:break-word;
+      line-height:1.5;
+      font-size: 1.08rem;
+    }
+
+    .countdown{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top: 2px;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 9px 12px;
+      border-radius: 14px;
+      font-weight:800;
+      font-size: 1.05rem;
+      border:1.6px solid #d9effc;
+      background:#ffffff;
+      color:#0a5a94;
+    }
+    .badge.good{border-color:#bff3d0; background:#f1fff6; color:#0d7a37;}
+    .badge.today{border-color:#ffe1a8; background:#fff8ea; color:#b35b00;}
+    .badge.over{border-color:#ffd2d2; background:#fff1f1; color:#c9183d;}
+    .badge i{opacity:.95;}
+
+    .right{ flex:0 0 auto; display:flex; align-items:center; gap: 8px; }
+    .icon-btn{
+      width:52px;height:52px;
+      border-radius:50%;
+      border:none;
+      cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      background:#fff;
+      color:#e53935;
+      font-size: 1.2rem;
+      box-shadow:0 2px 10px rgba(255,0,0,.08);
+      border:1.6px solid rgba(255,64,64,.18);
+      transition: transform .12s, background .14s;
+    }
+    .icon-btn:hover{background:#ffeaea; transform:scale(1.06);}
+    .icon-btn:active{transform:scale(.98);}
+
+    .empty{
+      text-align:center;
+      color:#5c7f95;
+      padding: 18px 10px;
+      font-weight:700;
+      font-size: 1.1rem;
+    }
+
+    /* Modal */
+    .modal-bg{
+      position:fixed; inset:0;
+      background: rgba(30,65,120,.15);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:99;
+      padding: 14px;
+      box-sizing:border-box;
+    }
+    .modal{
+      width: min(440px, 100%);
+      background:#fff;
+      border-radius: 22px;
+      box-shadow: 0 14px 60px rgba(33,183,237,.18);
+      border:1.6px solid #e2f4ff;
+      padding: 24px 20px 18px 20px;
+      animation: modalIn .22s ease both;
+    }
+    .modal-title{
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: var(--blue);
+      font-family:'Kanit','Prompt',sans-serif;
+      text-align:center;
+      margin-bottom: 14px;
+      display:flex;align-items:center;justify-content:center;gap:10px;
+    }
+    .field{margin-bottom: 14px;}
+    .label{
+      color:#0a5a94;
+      font-weight:800;
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+      display:block;
+    }
+    .input, .textarea{
+      width:100%;
+      box-sizing:border-box;
+      border-radius: 14px;
+      border:1.4px solid #cbe7fa;
+      background:#f7fcff;
+      padding: 14px 14px;
+      font-size: 1.12rem;
+      color:#0a4d78;
+      font-family:'Prompt','Kanit',sans-serif;
+      outline:none;
+      transition: border .14s, background .14s;
+    }
+    .input:focus,.textarea:focus{ border:2px solid #24b3f5; background:#fff; }
+    .textarea{resize:none; min-height: 80px;}
+
+    .error{
+      color:#e53935;
+      font-weight:700;
+      font-size: 1.02rem;
+      min-height: 1.2em;
+      margin: 6px 2px 0 2px;
+    }
+    .actions{
+      display:flex;
+      gap: 10px;
+      justify-content:flex-end;
+      margin-top: 14px;
+    }
+    .btn{
+      border:none;
+      border-radius: 14px;
+      padding: 14px 18px;
+      font-weight:900;
+      cursor:pointer;
+      font-family:'Kanit','Prompt',sans-serif;
+      font-size: 1.1rem;
+      transition: transform .12s, filter .14s;
+    }
+    .btn.cancel{ background:#ebf7fc; color:#0f8fc7; }
+    .btn.cancel:hover{ filter:saturate(1.05); transform:scale(1.02); }
+    .btn.save{
+      background: linear-gradient(90deg, #1dc1f3 10%, #39e1c9 100%);
+      color:#fff;
+    }
+    .btn.save:hover{ filter:saturate(1.06); transform:scale(1.02); }
+
+    @keyframes popIn{
+      from{opacity:0; transform: translateY(10px) scale(.98);}
+      to{opacity:1; transform: translateY(0) scale(1);}
+    }
+    @keyframes modalIn{
+      from{opacity:0; transform: translateY(14px) scale(.98);}
+      to{opacity:1; transform: translateY(0) scale(1);}
+    }
+
+    /* Responsive (เข้าชุดเดียวกับหน้าอื่น) */
+    @media (max-width: 950px){
+      .header-title{ font-size: 1.75rem; }
+      .header-desc{ font-size: 1.08rem; }
+      .logo-img{ height: 56px; }
+      .wrap{ padding: 0 14px; }
+      .topbar{ padding: 0 14px; }
+      .user-pill span{ max-width: 230px; }
+    }
+    @media (max-width: 600px){
+      .header-title{ font-size: 1.4rem; }
+      .header-desc{ font-size: 1rem; }
+
+      .topbar{
+        height: 66px;
+        padding: 0 3.5vw;
+        border-radius: 0 0 14px 14px;
+      }
+
+      .logo-img{
+        height: 52px;
+      }
+
+      .home-btn, .profile-btn{
+        width: 48px;
+        height: 48px;
+        font-size: 1.3rem;
+      }
+
+      .wrap{ padding: 0 3.5vw; }
+      .card{ padding: 16px 14px 14px 14px; }
+
+      .add-btn{ width:100%; justify-content:center; font-size: 1.1rem; padding: 14px 18px; }
+      .user-pill{ width:100%; justify-content:center; }
+
+      .dt{ font-size: 1.08rem; }
+      .note{ font-size: 1rem; }
+      .badge{ font-size: 0.98rem; padding: 8px 10px; }
+    }
+
+  </style>
+</head>
+
+<body>
+  <!-- Topbar (เข้าชุดเดียวกับหน้าอื่น) -->
+  <div class="topbar">
+    <div class="logo-group">
+      <img src="images/MedimateAI.png" alt="Medimate Logo" class="logo-img">
+    </div>
+    <div class="topbar-actions">
+      <button class="home-btn" onclick="window.location.href='main.html'" title="Home">
+        <i class="fa-solid fa-house"></i>
+      </button>
+      <button class="profile-btn" onclick="window.location.href='profile.html'" title="Profile">
+        <i class="fa-solid fa-user"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="header-section">
+    <div class="header-title">ตรวจสอบเวลาหมอนัด (Doctor Appointment)</div>
+    <div class="header-desc">
+      ดูตารางเวลานัดหมายกับแพทย์ของคุณที่นี่
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="toolbar">
+        <div class="user-pill" title="ผู้ใช้งาน (จาก localStorage)">
+          <i class="fa-solid fa-circle-user"></i>
+          <span id="userLabel">guest</span>
+        </div>
+        <button class="add-btn" id="addBtn">
+          <i class="fa-solid fa-plus"></i> เพิ่มนัดใหม่
+        </button>
+      </div>
+
+      <div class="list" id="list">
+        <div class="empty">กำลังโหลด...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-bg" id="modalBg" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-title"><i class="fa-solid fa-calendar-check"></i> เพิ่มหมอนัดใหม่</div>
+
+      <div class="field">
+        <label class="label" for="mDate">วันที่</label>
+        <input class="input" type="date" id="mDate" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="mTime">เวลา</label>
+        <input class="input" type="time" id="mTime" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="mNote">หมายเหตุ (ไม่บังคับ)</label>
+        <textarea class="textarea" id="mNote" maxlength="120" placeholder="เช่น ตรวจตามนัด / รับผลตรวจ"></textarea>
+      </div>
+
+      <div class="error" id="mErr"></div>
+
+      <div class="actions">
+        <button class="btn cancel" id="cancelBtn">ยกเลิก</button>
+        <button class="btn save" id="saveBtn">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Firebase Config (ตามที่ให้มา) =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyAM5gSwcz9CWcZFcYW9VPOOckWouXj7Ehw",
+      authDomain: "medimate-end.firebaseapp.com",
+      projectId: "medimate-end",
+      storageBucket: "medimate-end.firebasestorage.app",
+      messagingSenderId: "411322830334",
+      appId: "1:411322830334:web:c08cdb63ea9fff1a9444af",
+      measurementId: "G-CZLM5M88BE"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ===== User key =====
+    const username = (localStorage.getItem('medimate_username') || "guest").trim() || "guest";
+    document.getElementById("userLabel").textContent = username;
+
+    // ===== Refs =====
+    const listEl = document.getElementById("list");
+    const modalBg = document.getElementById("modalBg");
+    const mDate = document.getElementById("mDate");
+    const mTime = document.getElementById("mTime");
+    const mNote = document.getElementById("mNote");
+    const mErr  = document.getElementById("mErr");
+
+    let appointments = []; // {id, date, time, note, dtMillis}
+
+    function apptCol() {
+      return db.collection("users").doc(username).collection("appointments");
+    }
+
+    function openModal(){
+      mErr.textContent = "";
+      mDate.value = "";
+      mTime.value = "";
+      mNote.value = "";
+      modalBg.style.display = "flex";
+      modalBg.setAttribute("aria-hidden", "false");
+      setTimeout(()=>mDate.focus(), 120);
+    }
+    function closeModal(){
+      modalBg.style.display = "none";
+      modalBg.setAttribute("aria-hidden", "true");
+    }
+
+    document.getElementById("addBtn").addEventListener("click", openModal);
+    document.getElementById("cancelBtn").addEventListener("click", closeModal);
+    modalBg.addEventListener("mousedown", (e)=>{ if(e.target === modalBg) closeModal(); });
+
+    function pad2(n){ return String(n).padStart(2,"0"); }
+    function formatDateTime(dt){
+      const y = dt.getFullYear();
+      const mo = pad2(dt.getMonth()+1);
+      const d = pad2(dt.getDate());
+      const h = pad2(dt.getHours());
+      const mi= pad2(dt.getMinutes());
+      return `${y}-${mo}-${d} ${h}:${mi}`;
+    }
+
+    function countdownParts(targetMillis){
+      const now = Date.now();
+      let diff = targetMillis - now;
+      const sign = diff >= 0 ? 1 : -1;
+      diff = Math.abs(diff);
+
+      const days = Math.floor(diff / (24*60*60*1000));
+      diff -= days * 24*60*60*1000;
+      const hours = Math.floor(diff / (60*60*1000));
+      diff -= hours * 60*60*1000;
+      const mins = Math.floor(diff / (60*1000));
+      diff -= mins * 60*1000;
+      const secs = Math.floor(diff / 1000);
+
+      return { sign, days, hours, mins, secs };
+    }
+
+    function badgeHTML(ap){
+      const now = new Date();
+      const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const apDate = new Date(ap.dtMillis);
+      const ap0 = new Date(apDate.getFullYear(), apDate.getMonth(), apDate.getDate()).getTime();
+      const dayDiff = Math.round((ap0 - today0) / (24*60*60*1000));
+
+      const cd = countdownParts(ap.dtMillis);
+
+      if (cd.sign < 0){
+        return `
+          <span class="badge over"><i class="fa-solid fa-triangle-exclamation"></i> เลยเวลา</span>
+          <span class="badge over">ผ่านมา ${cd.days} วัน ${cd.hours} ชม ${cd.mins} นาที</span>
+        `;
+      }
+      if (dayDiff === 0){
+        return `
+          <span class="badge today"><i class="fa-solid fa-bell"></i> วันนี้</span>
+          <span class="badge today">อีก ${cd.hours} ชม ${cd.mins} นาที ${cd.secs} วิ</span>
+        `;
+      }
+      return `
+        <span class="badge good"><i class="fa-solid fa-hourglass-half"></i> เหลืออีก</span>
+        <span class="badge good">${cd.days} วัน ${cd.hours} ชม ${cd.mins} นาที ${cd.secs} วิ</span>
+      `;
+    }
+
+    function render(){
+      if (!appointments.length){
+        listEl.innerHTML = `<div class="empty">ยังไม่มีหมอนัด</div>`;
+        return;
+      }
+
+      const sorted = [...appointments].sort((a,b)=>a.dtMillis - b.dtMillis);
+      listEl.innerHTML = "";
+
+      for (const ap of sorted){
+        const dt = new Date(ap.dtMillis);
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <div class="left">
+            <div class="line1">
+              <div class="dt"><i class="fa-solid fa-calendar-days"></i> ${formatDateTime(dt)}</div>
+            </div>
+            ${ap.note ? `<div class="note">${ap.note}</div>` : ``}
+            <div class="countdown" id="cd_${ap.id}">
+              ${badgeHTML(ap)}
+            </div>
+          </div>
+          <div class="right">
+            <button class="icon-btn" title="ลบ" aria-label="ลบ" onclick="deleteAppointment('${ap.id}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        `;
+        listEl.appendChild(div);
+      }
+    }
+
+    function tickCountdown(){
+      if (!appointments.length) return;
+      for (const ap of appointments){
+        const el = document.getElementById(`cd_${ap.id}`);
+        if (!el) continue;
+        el.innerHTML = badgeHTML(ap);
+      }
+    }
+    setInterval(tickCountdown, 1000);
+
+    async function saveAppointment(){
+      const date = mDate.value;
+      const time = mTime.value;
+      const note = mNote.value.trim();
+
+      if (!date || !time){
+        mErr.textContent = "กรุณาเลือกวันและเวลา";
+        return;
+      }
+
+      const dt = new Date(`${date}T${time}:00`);
+      if (isNaN(dt.getTime())){
+        mErr.textContent = "รูปแบบวัน/เวลาไม่ถูกต้อง";
+        return;
+      }
+
+      try{
+        mErr.textContent = "";
+        await apptCol().add({
+          date,
+          time,
+          note,
+          dtMillis: dt.getTime(),
+          dtISO: dt.toISOString(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        closeModal();
+      }catch(e){
+        mErr.textContent = "บันทึกไม่สำเร็จ กรุณาลองใหม่";
+      }
+    }
+
+    document.getElementById("saveBtn").addEventListener("click", saveAppointment);
+    [mDate, mTime, mNote].forEach(el=>{
+      el.addEventListener("keydown", (e)=>{
+        if (e.key === "Enter" && el !== mNote){
+          e.preventDefault();
+          saveAppointment();
+        }
+      });
+    });
+
+    async function deleteAppointment(id){
+      if (!confirm("ลบนัดนี้ใช่หรือไม่?")) return;
+      try{
+        await apptCol().doc(id).delete();
+      }catch(e){
+        alert("ลบไม่สำเร็จ กรุณาลองใหม่");
+      }
+    }
+    window.deleteAppointment = deleteAppointment;
+
+    function listen(){
+      apptCol().orderBy("dtMillis","asc").onSnapshot((snap)=>{
+        const arr = [];
+        snap.forEach(doc=>{
+          const d = doc.data() || {};
+          if (typeof d.dtMillis !== "number") return;
+          arr.push({
+            id: doc.id,
+            date: d.date || "",
+            time: d.time || "",
+            note: d.note || "",
+            dtMillis: d.dtMillis
+          });
+        });
+        appointments = arr;
+        render();
+        tickCountdown();
+      }, ()=>{
+        listEl.innerHTML = `<div class="empty">โหลดข้อมูลไม่สำเร็จ กรุณารีเฟรช</div>`;
+      });
+    }
+
+    // Start
+    listen();
+  </script>
+</body>
+</html>
