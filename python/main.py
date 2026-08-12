@@ -10,6 +10,7 @@ from arduino.app_bricks.web_ui import WebUI
 
 from hwtest import register                  # ปัดยา + เทสเซอร์โว + กล้อง
 from medimate import register as register_medimate   # ประวัติจ่ายยา + ชื่อยาในหลอด
+from aiproxy import register as register_ai          # แชทบอท — บอร์ดถือ token ให้
 
 WEB_PORT = 8001
 
@@ -17,5 +18,6 @@ WEB_PORT = 8001
 ui = WebUI(port=WEB_PORT)
 register(ui)
 register_medimate(ui)
+register_ai(ui)
 
 App.run()                                    # บล็อกจนกว่าแอปจะถูกสั่งหยุด

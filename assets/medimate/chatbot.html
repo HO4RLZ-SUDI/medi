@@ -431,16 +431,18 @@
 
   <div class="toast" id="toast">สร้างแชทใหม่แล้ว ✅</div>
 
+  <script src="../libs/socket.io.min.js"></script>
+  <script src="../libs/arduino.js"></script>
+  <script src="medimate-hw.js"></script>
+
   <script>
     // === CHATBOT FUNCTION ===
-    // ใช้ Hugging Face Inference (endpoint เข้ากันได้กับรูปแบบ OpenAI chat completions)
-    // อย่า hardcode token ในไฟล์นี้ — ใครเปิดหน้าเว็บก็กด View Source อ่านได้
-    // ตั้งค่าครั้งเดียวใน console ของเบราว์เซอร์:
-    //   localStorage.setItem("medimate_hf_token", "hf_...")
-    //   localStorage.setItem("medimate_hf_model", "ชื่อโมเดลที่จะใช้")   // ไม่ตั้งก็ได้
-    const HF_TOKEN    = localStorage.getItem("medimate_hf_token") || "";
-    const HF_MODEL    = localStorage.getItem("medimate_hf_model") || "meta-llama/Llama-3.3-70B-Instruct";
-    const HF_ENDPOINT = localStorage.getItem("medimate_hf_endpoint") || "https://router.huggingface.co/v1/chat/completions";
+    // ไม่มี API token อยู่ในหน้านี้เลย — บอร์ดเป็นคนถือ token แล้วยิงไป
+    // Hugging Face ให้ (ดู python/aiproxy.py) หน้าเว็บแค่ส่งข้อความไปกลับ
+    // ตั้ง token ครั้งเดียวจาก console ของหน้านี้:
+    //   MedimateHW.setChatToken("hf_...")
+    // หรือ ssh เข้าบอร์ดแล้ว:
+    //   echo -n 'hf_...' > ~/.medimate/hf_token && chmod 600 ~/.medimate/hf_token
     const systemPrompt = "คุณคือผู้ช่วยสุขภาพแบบเป็นมิตรและใจดี ใช้ภาษาไทยเป็นหลัก ช่วยตอบทุกเรื่องสุขภาพ ยา เบื้องต้นในแบบฉบับ MedimateAI";
 
     const chatMessages = document.getElementById('chatMessages');
@@ -592,7 +594,7 @@
     }
     if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {};
 
-    // ===== Send to OpenAI =====
+    // ===== ส่งคำถามผ่านบอร์ด (บอร์ดถือ token ให้) =====
     async function sendToAI(message) {
       const curr = chatHistories[currentChatIndex];
       curr.messages = curr.messages || [];
@@ -608,32 +610,14 @@
 
       const loadingDiv = addMessage("กำลังคิดคำตอบ...", "bot", true);
 
-      if (!HF_TOKEN) {
+      if (!window.MedimateHW || !MedimateHW.isAvailable()) {
         loadingDiv.remove();
-        addMessage('ยังไม่ได้ตั้งค่า token ของ Hugging Face — เปิด console แล้วสั่ง localStorage.setItem("medimate_hf_token", "hf_...")', "bot");
+        addMessage("แชทบอททำงานผ่านตู้จ่ายยา — ต้องเปิดหน้านี้จากบอร์ด (http://<ip-บอร์ด>:8001/medimate/chatbot.html) ครับ", "bot");
         return;
       }
 
       try {
-        const response = await fetch(HF_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + HF_TOKEN
-          },
-          body: JSON.stringify({
-            model: HF_MODEL,
-            messages: messages,
-            max_tokens: 600,
-            temperature: 0.6
-          })
-        });
-
-        const data = await response.json();
-        let reply = "ขออภัย ระบบไม่สามารถตอบได้ชั่วคราวครับ";
-
-        if (data.choices && data.choices.length > 0) reply = data.choices[0].message.content.trim();
-        else if (data.error && data.error.message) reply = "ขออภัย: " + data.error.message;
+        const reply = await MedimateHW.chat(messages);
 
         loadingDiv.remove();
         addMessage(reply, "bot");
@@ -641,7 +625,7 @@
         saveCurrentChat();
       } catch (err) {
         loadingDiv.remove();
-        addMessage("ขออภัย มีปัญหาในการเชื่อมต่อเซิร์ฟเวอร์", "bot");
+        addMessage("ขออภัย ตอบไม่ได้ครับ: " + ((err && err.message) || "เชื่อมต่อไม่สำเร็จ"), "bot");
       }
     }
 

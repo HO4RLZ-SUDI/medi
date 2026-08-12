@@ -57,6 +57,27 @@
     ui.on_message("history_update", function (d) { emitLocal("history", (d && d.history) || []); });
     ui.on_message("tubes_update", function (d) { emitLocal("tubes", (d && d.tubes) || []); });
     ui.on_message("medimate_status", function (d) { emitLocal("status", d || {}); });
+
+    // เหตุการณ์จาก aiproxy.py
+    ui.on_message("chat_config", function (d) { emitLocal("chat_config", d || {}); });
+    ui.on_message("chat_reply", function (d) {
+      d = d || {};
+      var pending = chatWaiting[d.id];
+      if (!pending) return;                  // ของ client อื่น หรือหมดเวลาไปแล้ว
+      delete chatWaiting[d.id];
+      clearTimeout(pending.timer);
+      if (d.ok) pending.resolve(d.reply || "");
+      else pending.reject(new Error(d.error || "บอร์ดตอบกลับไม่สำเร็จ"));
+    });
+  }
+
+  /* ---------- แชท (บอร์ดเป็นคนถือ token) ---------- */
+  var chatWaiting = {};          // id -> {resolve, reject, timer}
+  var chatSeq = 0;
+
+  function newChatId() {
+    chatSeq += 1;
+    return "c" + Date.now().toString(36) + "-" + chatSeq;
   }
 
   function send(event, data) {
@@ -115,6 +136,37 @@
     },
 
     clearHistory: function () { return send("mm_clear_history", {}); },
+
+    /* ----- แชทบอท ----- */
+
+    /** บอร์ดตั้ง token ของ Hugging Face ไว้แล้วหรือยัง
+     *  -> {configured, model, endpoint} (ไม่มี token อยู่ใน response) */
+    chatStatus: function () { return getJSON("/api/chat/status"); },
+
+    /** เก็บ token ไว้ที่บอร์ด ส่งครั้งเดียวพอ หน้าเว็บไม่ต้องจำ */
+    setChatToken: function (token) { return send("chat_set_token", { token: token }); },
+
+    /** ถามแชทบอท — messages = [{role, content}, ...]
+     *  คืน Promise ที่ resolve เป็นข้อความตอบ token ไม่เคยผ่านเบราว์เซอร์ */
+    chat: function (messages, opts) {
+      opts = opts || {};
+      if (!ui) return Promise.reject(new Error("ยังไม่ได้ต่อกับบอร์ด"));
+
+      var id = newChatId();
+      return new Promise(function (resolve, reject) {
+        chatWaiting[id] = {
+          resolve: resolve,
+          reject: reject,
+          timer: setTimeout(function () {
+            delete chatWaiting[id];
+            reject(new Error("บอร์ดไม่ตอบภายในเวลาที่กำหนด"));
+          }, opts.timeout || 70000)
+        };
+        send("chat_ask", { id: id, messages: messages, model: opts.model || null });
+      });
+    },
+
+    onChatConfig: function (fn) { return on("chat_config", fn); },
 
     /* ----- ทดสอบกลไก ----- */
     servoWrite: function (idx, angle) { return send("servo_write", { idx: idx, angle: angle }); },
