@@ -433,10 +433,14 @@
 
   <script>
     // === CHATBOT FUNCTION ===
-    // อย่า hardcode API key ในไฟล์ที่ push ขึ้น git — ใครเปิดหน้าเว็บก็อ่านได้
+    // ใช้ Hugging Face Inference (endpoint เข้ากันได้กับรูปแบบ OpenAI chat completions)
+    // อย่า hardcode token ในไฟล์นี้ — ใครเปิดหน้าเว็บก็กด View Source อ่านได้
     // ตั้งค่าครั้งเดียวใน console ของเบราว์เซอร์:
-    //   localStorage.setItem("medimate_openai_key", "sk-...")
-    const OPENAI_API_KEY = localStorage.getItem("medimate_openai_key") || "";
+    //   localStorage.setItem("medimate_hf_token", "hf_...")
+    //   localStorage.setItem("medimate_hf_model", "ชื่อโมเดลที่จะใช้")   // ไม่ตั้งก็ได้
+    const HF_TOKEN    = localStorage.getItem("medimate_hf_token") || "";
+    const HF_MODEL    = localStorage.getItem("medimate_hf_model") || "meta-llama/Llama-3.3-70B-Instruct";
+    const HF_ENDPOINT = localStorage.getItem("medimate_hf_endpoint") || "https://router.huggingface.co/v1/chat/completions";
     const systemPrompt = "คุณคือผู้ช่วยสุขภาพแบบเป็นมิตรและใจดี ใช้ภาษาไทยเป็นหลัก ช่วยตอบทุกเรื่องสุขภาพ ยา เบื้องต้นในแบบฉบับ MedimateAI";
 
     const chatMessages = document.getElementById('chatMessages');
@@ -589,7 +593,7 @@
     if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {};
 
     // ===== Send to OpenAI =====
-    async function sendToOpenAI(message) {
+    async function sendToAI(message) {
       const curr = chatHistories[currentChatIndex];
       curr.messages = curr.messages || [];
 
@@ -604,15 +608,21 @@
 
       const loadingDiv = addMessage("กำลังคิดคำตอบ...", "bot", true);
 
+      if (!HF_TOKEN) {
+        loadingDiv.remove();
+        addMessage('ยังไม่ได้ตั้งค่า token ของ Hugging Face — เปิด console แล้วสั่ง localStorage.setItem("medimate_hf_token", "hf_...")', "bot");
+        return;
+      }
+
       try {
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        const response = await fetch(HF_ENDPOINT, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": "Bearer " + OPENAI_API_KEY
+            "Authorization": "Bearer " + HF_TOKEN
           },
           body: JSON.stringify({
-            model: "gpt-4o",
+            model: HF_MODEL,
             messages: messages,
             max_tokens: 600,
             temperature: 0.6
@@ -653,7 +663,7 @@
 
       chatInputEl.value = "";
       autoGrow(chatInputEl);
-      sendToOpenAI(msg);
+      sendToAI(msg);
       saveCurrentChat();
     });
 
